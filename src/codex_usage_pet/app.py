@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
+
+from codex_usage_pet.services.logger import configure_logging
+from codex_usage_pet.services.settings import SettingsStore
+from codex_usage_pet.services.startup import StartupManager
+from codex_usage_pet.services.usage_service import UsageService
+from codex_usage_pet.ui.pet_window import PetWindow
+from codex_usage_pet.ui.tray import TrayIcon, make_app_icon
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Codex Usage Pet")
+    parser.add_argument("--smoke-test", action="store_true", help=argparse.SUPPRESS)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    log_path = configure_logging()
+    logger = logging.getLogger(__name__)
+    logger.info("Codex Usage Pet starting; log=%s", log_path)
+    app = QApplication(sys.argv[:1])
+    app.setApplicationName("Codex Usage Pet")
+    app.setApplicationVersion("0.1.0")
+    app.setWindowIcon(make_app_icon())
+    app.setQuitOnLastWindowClosed(False)
+
+    store = SettingsStore()
+    settings = store.load()
+    startup = StartupManager()
+    window = PetWindow(settings, store, startup)
+    service = UsageService(settings.refresh_interval)
+    tray = TrayIcon(window.build_menu, window.toggle_visible)
+
+    service.usage_updated.connect(window.set_snapshot)
+    service.read_failed.connect(window.set_error)
+    window.refresh_requested.connect(service.refresh_now)
+    window.interval_changed.connect(service.set_interval)
+
+    stopping = False
+
+    def shutdown() -> None:
+        nonlocal stopping
+        if stopping:
+            return
+        stopping = True
+        window.save_settings()
+        service.stop()
+        tray.hide()
+        logger.info("Codex Usage Pet stopped")
+        app.quit()
+
+    window.quit_requested.connect(shutdown)
+    app.aboutToQuit.connect(service.stop)
+    tray.refresh_menu()
+    window.show()
+    service.start()
+    if args.smoke_test:
+        QTimer.singleShot(1800, shutdown)
+    return app.exec()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+

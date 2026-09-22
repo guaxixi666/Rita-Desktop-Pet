@@ -47,6 +47,7 @@ class CodexAppServerClient:
         self._start_lock = threading.RLock()
         self._write_lock = threading.Lock()
         self._stopping = threading.Event()
+        self._closed = threading.Event()
 
     @staticmethod
     def _default_command() -> list[str]:
@@ -61,6 +62,8 @@ class CodexAppServerClient:
 
     def start(self) -> None:
         with self._start_lock:
+            if self._closed.is_set():
+                raise AppServerError("Codex App Server client is closed")
             if self._process and self._process.poll() is None:
                 return
             self._stopping.clear()
@@ -95,12 +98,14 @@ class CodexAppServerClient:
                 )
                 self._send({"method": "initialized", "params": {}})
             except Exception:
-                self.close()
+                self._close_process()
                 raise
 
     def request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         last_error: Exception | None = None
         for attempt in range(2):
+            if self._closed.is_set():
+                raise AppServerError("Codex App Server client is closed")
             try:
                 self.start()
                 return self._round_trip(method, params)
@@ -108,8 +113,8 @@ class CodexAppServerClient:
                 raise
             except (AppServerError, OSError) as exc:
                 last_error = exc
-                self.close()
-                if attempt == 0:
+                self._close_process()
+                if attempt == 0 and not self._closed.is_set():
                     time.sleep(0.25)
         raise AppServerError(str(last_error or "Codex App Server request failed"))
 
@@ -120,6 +125,10 @@ class CodexAppServerClient:
         return self.request("account/rateLimits/read")
 
     def close(self) -> None:
+        self._closed.set()
+        self._close_process()
+
+    def _close_process(self) -> None:
         with self._start_lock:
             process = self._process
             self._process = None

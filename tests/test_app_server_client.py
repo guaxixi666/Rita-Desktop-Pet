@@ -49,4 +49,5 @@ def test_close_cleans_up_child_process() -> None:
     client.close()
     assert process.poll() is not None
     assert client.pid is None
-
+    with pytest.raises(AppServerError, match="closed"):
+        client.start()
