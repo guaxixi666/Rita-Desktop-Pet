@@ -4,28 +4,36 @@ Updated: 2026-09-22
 
 ## Current phase
 
-Phases 1–3 complete; Phase 4 tests are being added.
+Phases 1–10 complete. Phase 11 packaging verification is in progress; Phase 12 documentation and automated tests are complete.
 
 ## Completed
 
-- Reviewed the four requested repositories and their MIT licenses.
-- Verified the official Codex App Server handshake and rate-limit schema.
-- Selected Python + PySide6 and a modular `src/` layout.
-- Added a persistent official App Server JSON-RPC client with initialization,
-  notification handling, bounded retry, and child-process cleanup.
-- Added typed 5-hour/weekly/credits models and pet quota states.
+- Researched all four requested repositories and verified their MIT licenses.
+- Verified the current official Codex App Server documentation and generated schema from local Codex CLI 0.155.0-alpha.9.2.
+- Implemented the persistent App Server client, official handshake, full reads, update-event handling, bounded reconnect, and child cleanup.
+- Implemented typed 5h/weekly/credits parsing with local reset times.
+- Live-verified this machine's ChatGPT account without exposing account identity.
+- Implemented the transparent frameless desktop pet and compact usage bubble.
+- Implemented quota-linked states, low-frequency animation, tray/context menu, user-level startup, settings, rotating redacted logs, and error recovery.
+- Added PyInstaller onedir spec and build script.
+- Added open-source research and attribution documents.
 
 ## Test status
 
-- Tests not yet installed or run.
+- `pytest`: 28 passed on Python 3.13.13 / Windows.
+- Offscreen Qt application smoke test: passed.
+- Live App Server read: passed (account/rate-limit values returned).
+- Visual offscreen snapshot: rendered and inspected; pet and usage layout are intact. The offscreen Qt plugin did not render system fonts faithfully, so a normal visible Windows run remains the authoritative font check.
 
 ## Next
 
-- Add and run parser/App Server lifecycle tests.
-- Build the desktop pet MVP.
+- Build `dist/CodexUsagePet/CodexUsagePet.exe` and run the frozen smoke test.
+- Optional later: external sprite sheets, installer/code signing, richer walk and sit behaviors.
 
 ## Known issues
 
-- No runnable UI yet.
-- The current machine has Python 3.13, while 3.11/3.12 remains the recommended
-  development and packaging target.
+- The build is unsigned and may trigger SmartScreen.
+- The machine has Python 3.13; Python 3.11/3.12 remains the recommended release build target even though tests pass on 3.13.
+- App Server fields may vary by Codex version/account; absent values are shown as unavailable rather than guessed.
+- No installer or automatic updater is included in the MVP.
+
