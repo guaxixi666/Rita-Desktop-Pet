@@ -4,7 +4,7 @@ Updated: 2026-09-22
 
 ## Current phase
 
-Phases 1–10 complete. Phase 11 packaging verification is in progress; Phase 12 documentation and automated tests are complete.
+Phases 1–12 complete for the MVP.
 
 ## Completed
 
@@ -16,6 +16,7 @@ Phases 1–10 complete. Phase 11 packaging verification is in progress; Phase 12
 - Implemented the transparent frameless desktop pet and compact usage bubble.
 - Implemented quota-linked states, low-frequency animation, tray/context menu, user-level startup, settings, rotating redacted logs, and error recovery.
 - Added PyInstaller onedir spec and build script.
+- Built and smoke-tested `dist/CodexUsagePet/CodexUsagePet.exe`.
 - Added open-source research and attribution documents.
 
 ## Test status
@@ -23,12 +24,14 @@ Phases 1–10 complete. Phase 11 packaging verification is in progress; Phase 12
 - `pytest`: 28 passed on Python 3.13.13 / Windows.
 - Offscreen Qt application smoke test: passed.
 - Live App Server read: passed (account/rate-limit values returned).
+- Frozen application smoke test: passed with exit code 0; the child process
+  stopped without a shutdown-time reconnect.
 - Visual offscreen snapshot: rendered and inspected; pet and usage layout are intact. The offscreen Qt plugin did not render system fonts faithfully, so a normal visible Windows run remains the authoritative font check.
 
-## Next
+## Next (optional enhancements)
 
-- Build `dist/CodexUsagePet/CodexUsagePet.exe` and run the frozen smoke test.
-- Optional later: external sprite sheets, installer/code signing, richer walk and sit behaviors.
+- Add external sprite sheets, an installer/code signing, and richer walk/sit
+  behaviors if desired.
 
 ## Known issues
 
@@ -36,4 +39,3 @@ Phases 1–10 complete. Phase 11 packaging verification is in progress; Phase 12
 - The machine has Python 3.13; Python 3.11/3.12 remains the recommended release build target even though tests pass on 3.13.
 - App Server fields may vary by Codex version/account; absent values are shown as unavailable rather than guessed.
 - No installer or automatic updater is included in the MVP.
-
