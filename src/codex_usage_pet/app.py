@@ -8,6 +8,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from codex_usage_pet.services.logger import configure_logging
+from codex_usage_pet.services.desktop_shortcut import DesktopShortcutManager
 from codex_usage_pet.services.settings import SettingsStore
 from codex_usage_pet.services.startup import StartupManager
 from codex_usage_pet.services.usage_service import UsageService
@@ -35,9 +36,10 @@ def main(argv: list[str] | None = None) -> int:
     store = SettingsStore()
     settings = store.load()
     startup = StartupManager()
+    shortcuts = DesktopShortcutManager()
     skin_manager = SkinManager(settings, store)
     app.setWindowIcon(make_app_icon(skin_manager.current))
-    window = PetWindow(settings, store, startup, skin_manager)
+    window = PetWindow(settings, store, startup, skin_manager, shortcuts)
     service = UsageService(settings.refresh_interval)
     tray = TrayIcon(window.build_menu, window.toggle_visible, window.current_skin)
 

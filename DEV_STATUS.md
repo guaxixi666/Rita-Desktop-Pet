@@ -8,7 +8,7 @@ Updated: 2026-09-23
 
 ## Final acceptance
 
-- Automated tests: **111 passed** with Qt offscreen; the release build repeats the full suite before packaging.
+- Automated tests: **116 passed** with Qt offscreen; the release build repeats the full suite before packaging.
 - Frozen EXE smoke test: exit code 0; completed a real App Server read; no new App Server process remained after exit.
 - Portable test: extracted into a new `%TEMP%` directory outside the source tree, completed a real App Server read, exited 0, and left no child process behind.
 - Live Codex App Server read: account type `chatgpt`, plan `plus`, Codex bucket, 5-hour and weekly windows, credits, and reset-credit count were returned.
@@ -92,9 +92,19 @@ Updated: 2026-09-23
 
 Inno Setup 6 is not installed on this machine, so no installer executable was built.
 
+## Desktop shortcut acceptance
+
+- Added “创建桌面快捷方式” and “删除桌面快捷方式” to the pet and tray context menus. Creating again updates the same `Codex Usage Pet.lnk`, which supports a Portable folder moving to a new path.
+- The Desktop location comes from Qt `QStandardPaths.DesktopLocation`; the frozen target comes from `sys.executable`. Development mode disables both actions and never points a link at `python.exe`.
+- The link is written with native Unicode `IShellLinkW`/`IPersistFile` COM APIs. Its target, working directory, and icon all point to the running EXE; no administrator rights or extra runtime dependency is required.
+- Automated suite: **116 passed**. The release EXE and portable ZIP were rebuilt, and the ZIP contains the updated executable and documentation.
+- A real link was created at the current user's Desktop and inspected successfully: filename, target, working directory, and icon were correct, including the Chinese target path. A freshly extracted Portable EXE then replaced the target in-place, and a second update restored the release path while the Desktop still contained exactly one link.
+- Explorer/PowerShell launch verification was blocked by the host's enterprise Code Integrity policy because the locally rebuilt EXE is unsigned (events 3033/3077, policy ID `{0283ac0f-fff1-49ae-ada1-8a933130cad6}`). The policy was not bypassed or modified.
+
 ## Known limitations
 
 - The build is unsigned and can trigger Windows SmartScreen.
+- This development host currently enforces an enterprise signing policy for newly rebuilt executables; the unsigned RC cannot be launched from the Codex worker until signed or explicitly allowed by the administrator.
 - The release was built with Python 3.13.13; Python 3.11/3.12 remains the recommended development target.
 - App Server fields vary by account and Codex version; absent optional fields are hidden instead of guessed.
 - Physical acceptance used the single connected 1920x1080, 96-DPI display. Multi-display placement is covered by screen-aware code and boundary tests, but no second physical monitor was available.

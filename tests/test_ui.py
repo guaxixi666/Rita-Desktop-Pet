@@ -176,7 +176,19 @@ def test_menu_tray_screen_and_dpi_basics(app, tmp_path: Path) -> None:
     window = make_window(tmp_path)
     menu = window.build_menu()
     labels = {action.text() for action in menu.actions() if action.text()}
-    assert {"刷新额度", "显示额度", "始终置顶", "锁定位置", "开机启动", "退出"} <= labels
+    assert {
+        "刷新额度",
+        "显示额度",
+        "始终置顶",
+        "锁定位置",
+        "开机启动",
+        "创建桌面快捷方式",
+        "删除桌面快捷方式",
+        "退出",
+    } <= labels
+    actions = {action.text(): action for action in menu.actions() if action.text()}
+    assert not actions["创建桌面快捷方式"].isEnabled()
+    assert not actions["删除桌面快捷方式"].isEnabled()
     assert app.primaryScreen() is not None
     assert app.primaryScreen().devicePixelRatio() > 0
     assert window._bounded_position(QPoint(-100000, -100000)).x() > -100000
@@ -186,6 +198,49 @@ def test_menu_tray_screen_and_dpi_basics(app, tmp_path: Path) -> None:
     assert tray.icon.contextMenu() is not None
     assert tray._menu is tray.icon.contextMenu()
     tray.hide()
+    window.deleteLater()
+
+
+def test_shortcut_menu_updates_create_and_delete_state(app, tmp_path: Path) -> None:
+    class FakeShortcutManager:
+        supported = True
+
+        def __init__(self) -> None:
+            self.created = False
+
+        def is_created(self) -> bool:
+            return self.created
+
+        def create(self) -> Path:
+            self.created = True
+            return tmp_path / "Codex Usage Pet.lnk"
+
+        def delete(self) -> bool:
+            existed = self.created
+            self.created = False
+            return existed
+
+    shortcuts = FakeShortcutManager()
+    window = PetWindow(
+        AppSettings(),
+        SettingsStore(tmp_path / "settings.json"),
+        StartupManager(registry=None),
+        shortcut_manager=shortcuts,  # type: ignore[arg-type]
+    )
+
+    menu = window.build_menu()
+    actions = {action.text(): action for action in menu.actions() if action.text()}
+    assert actions["创建桌面快捷方式"].isEnabled()
+    assert not actions["删除桌面快捷方式"].isEnabled()
+
+    window.create_desktop_shortcut()
+    menu = window.build_menu()
+    actions = {action.text(): action for action in menu.actions() if action.text()}
+    assert actions["创建桌面快捷方式"].isEnabled()
+    assert actions["删除桌面快捷方式"].isEnabled()
+
+    window.delete_desktop_shortcut()
+    assert shortcuts.created is False
     window.deleteLater()
 
 

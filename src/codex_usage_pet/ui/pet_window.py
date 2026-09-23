@@ -4,10 +4,11 @@ import os
 
 from PySide6.QtCore import QEasingCurve, QEvent, QPoint, QPropertyAnimation, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QActionGroup, QCursor, QGuiApplication
-from PySide6.QtWidgets import QApplication, QInputDialog, QMenu, QMessageBox, QWidget
+from PySide6.QtWidgets import QApplication, QInputDialog, QMenu, QMessageBox, QToolTip, QWidget
 
 from codex_usage_pet.codex.models import UsageSnapshot
 from codex_usage_pet.pet.states import PetState, PetStateTracker, state_for_remaining
+from codex_usage_pet.services.desktop_shortcut import DesktopShortcutManager
 from codex_usage_pet.services.paths import log_dir
 from codex_usage_pet.services.settings import AppSettings, SettingsStore
 from codex_usage_pet.services.startup import StartupManager
@@ -35,11 +36,13 @@ class PetWindow(QWidget):
         store: SettingsStore,
         startup: StartupManager,
         skin_manager: SkinManager | None = None,
+        shortcut_manager: DesktopShortcutManager | None = None,
     ) -> None:
         super().__init__()
         self.settings = settings
         self.store = store
         self.startup = startup
+        self.shortcuts = shortcut_manager or DesktopShortcutManager()
         self.skin_manager = skin_manager or SkinManager(settings, store)
         self.current_skin = self.skin_manager.current
         self._anchor: QPoint | None = None
@@ -214,6 +217,14 @@ class PetWindow(QWidget):
         startup.setEnabled(self.startup.supported)
         startup.setChecked(self.startup.is_enabled())
         startup.triggered.connect(self.set_startup_enabled)
+        create_shortcut = menu.addAction("创建桌面快捷方式")
+        # Keep this enabled when a link already exists so a moved portable
+        # build can update the same file to its current executable path.
+        create_shortcut.setEnabled(self.shortcuts.supported)
+        create_shortcut.triggered.connect(self.create_desktop_shortcut)
+        delete_shortcut = menu.addAction("删除桌面快捷方式")
+        delete_shortcut.setEnabled(self.shortcuts.supported and self.shortcuts.is_created())
+        delete_shortcut.triggered.connect(self.delete_desktop_shortcut)
         menu.addSeparator()
         logs = menu.addAction("打开日志目录")
         logs.triggered.connect(self.open_logs)
@@ -292,6 +303,24 @@ class PetWindow(QWidget):
             self.save_settings()
         except Exception as exc:
             QMessageBox.warning(self, "Codex Usage Pet", f"无法修改开机启动：{exc}")
+
+    def create_desktop_shortcut(self) -> None:
+        try:
+            self.shortcuts.create()
+        except Exception as exc:
+            QToolTip.showText(QCursor.pos(), f"无法创建桌面快捷方式：{exc}", self)
+            return
+        QToolTip.showText(QCursor.pos(), "桌面快捷方式已创建", self)
+        self.menu_changed.emit()
+
+    def delete_desktop_shortcut(self) -> None:
+        try:
+            self.shortcuts.delete()
+        except Exception as exc:
+            QToolTip.showText(QCursor.pos(), f"无法删除桌面快捷方式：{exc}", self)
+            return
+        QToolTip.showText(QCursor.pos(), "桌面快捷方式已删除", self)
+        self.menu_changed.emit()
 
     def change_skin(self, skin_id: str, *, reason: str = "manual") -> None:
         pack = self.skin_manager.change(skin_id, reason=reason)
