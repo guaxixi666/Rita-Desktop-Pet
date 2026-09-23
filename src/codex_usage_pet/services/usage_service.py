@@ -17,13 +17,20 @@ class UsageService(QObject):
     read_failed = Signal(str)
     connection_changed = Signal(bool)
 
-    def __init__(self, refresh_interval: int = 60) -> None:
+    def __init__(
+        self,
+        refresh_interval: int = 60,
+        *,
+        client: CodexAppServerClient | None = None,
+    ) -> None:
         super().__init__()
         self._interval = max(30, refresh_interval)
         self._wake = threading.Event()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
-        self._client = CodexAppServerClient(notification_handler=self._notification)
+        self._client = client or CodexAppServerClient(
+            notification_handler=self._notification
+        )
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():

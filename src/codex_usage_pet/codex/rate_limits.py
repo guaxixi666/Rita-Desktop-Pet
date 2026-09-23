@@ -35,10 +35,7 @@ def parse_rate_limits(
     primary = _parse_window(snapshot.get("primary"))
     secondary = _parse_window(snapshot.get("secondary"))
 
-    if primary and primary.window_duration_mins and primary.window_duration_mins >= WEEK_MINUTES:
-        five_hour, weekly = (None, primary) if secondary is None else (primary, secondary)
-    else:
-        five_hour, weekly = primary, secondary
+    five_hour, weekly = _classify_windows(primary, secondary)
 
     if five_hour is None and weekly is None:
         raise RateLimitParseError("response contains no usable rate-limit windows")
@@ -95,6 +92,26 @@ def _parse_window(payload: Any) -> UsageWindow | None:
         window_duration_mins=duration,
         resets_at=local_datetime_from_epoch(payload.get("resetsAt")),
     )
+
+
+def _classify_windows(
+    primary: UsageWindow | None, secondary: UsageWindow | None
+) -> tuple[UsageWindow | None, UsageWindow | None]:
+    """Map windows by their duration while preserving legacy field order."""
+    windows = [window for window in (primary, secondary) if window is not None]
+    weekly = next(
+        (
+            window
+            for window in windows
+            if window.window_duration_mins is not None
+            and window.window_duration_mins >= WEEK_MINUTES
+        ),
+        None,
+    )
+    if weekly is not None:
+        five_hour = next((window for window in windows if window is not weekly), None)
+        return five_hour, weekly
+    return primary, secondary
 
 
 def _optional_text(value: Any) -> str | None:

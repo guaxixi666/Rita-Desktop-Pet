@@ -37,7 +37,10 @@ class CodexAppServerClient:
         timeout: float = 10.0,
         notification_handler: NotificationHandler | None = None,
     ) -> None:
-        self.command = list(command) if command else self._default_command()
+        # Resolve the CLI lazily.  A missing/temporarily unavailable Codex CLI
+        # must be reported by the refresh worker, not crash the desktop UI
+        # while its objects are still being constructed.
+        self.command = list(command) if command else None
         self.timeout = timeout
         self.notification_handler = notification_handler
         self._process: subprocess.Popen[str] | None = None
@@ -68,9 +71,10 @@ class CodexAppServerClient:
                 return
             self._stopping.clear()
             flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+            command = self.command or self._default_command()
             try:
                 self._process = subprocess.Popen(
-                    self.command,
+                    command,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,

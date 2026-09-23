@@ -8,7 +8,9 @@ from pathlib import Path
 from .paths import log_dir
 
 _SENSITIVE = re.compile(
-    r"(?i)(bearer\s+|access[_-]?token[=: ]+|refresh[_-]?token[=: ]+|session[_-]?token[=: ]+)([^\s,;]+)"
+    r"(?i)(bearer\s+|authorization\s*[=:]\s*|cookie\s*[=:]\s*|"
+    r"access[_-]?token[=: ]+|refresh[_-]?token[=: ]+|"
+    r"session(?:[_-]?credential|[_-]?token)?[=: ]+)([^\s,;]+)"
 )
 
 

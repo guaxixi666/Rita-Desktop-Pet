@@ -63,7 +63,9 @@ def main(argv: list[str] | None = None) -> int:
     window.show()
     service.start()
     if args.smoke_test:
-        QTimer.singleShot(1800, shutdown)
+        # Leave enough time for a real App Server handshake and first quota
+        # read; a shorter timer only proved that Qt could open and close.
+        QTimer.singleShot(7000, shutdown)
     return app.exec()
 
 

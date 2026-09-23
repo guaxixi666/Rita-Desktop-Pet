@@ -41,6 +41,13 @@ def test_unavailable_server_is_reported() -> None:
         client.start()
 
 
+def test_missing_default_cli_is_reported_at_start_not_construction(monkeypatch) -> None:
+    monkeypatch.setattr("shutil.which", lambda _name: None)
+    client = CodexAppServerClient()
+    with pytest.raises(AppServerError, match="找不到 codex"):
+        client.start()
+
+
 def test_close_cleans_up_child_process() -> None:
     client = CodexAppServerClient([sys.executable, str(FAKE_SERVER)], timeout=2)
     client.start()

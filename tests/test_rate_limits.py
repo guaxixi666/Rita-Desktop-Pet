@@ -80,6 +80,21 @@ def test_single_week_window_maps_to_weekly() -> None:
     assert result.weekly.remaining_percent == 58
 
 
+def test_reversed_server_window_order_maps_by_duration() -> None:
+    result = parse_rate_limits(
+        {
+            "rateLimits": {
+                "primary": {"usedPercent": 40, "windowDurationMins": 10080},
+                "secondary": {"usedPercent": 20, "windowDurationMins": 300},
+            }
+        }
+    )
+    assert result.five_hour is not None
+    assert result.weekly is not None
+    assert result.five_hour.used_percent == 20
+    assert result.weekly.used_percent == 40
+
+
 @pytest.mark.parametrize("bad", [{}, {"rateLimits": {}}, {"rateLimits": {"primary": {}}}])
 def test_missing_fields_raise_clear_error(bad: dict) -> None:
     with pytest.raises(RateLimitParseError):

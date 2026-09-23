@@ -121,6 +121,16 @@ dist\CodexUsagePet-portable.zip
 
 目标电脑仍需安装并登录 Codex CLI；应用本身不捆绑或复制 Codex 凭据。当前构建未进行代码签名，因此首次运行可能出现 Windows SmartScreen 提示。
 
+### Portable 使用
+
+1. 将 `CodexUsagePet-portable.zip` 完整解压到任意可写目录；不要直接在 ZIP 内运行。
+2. 确认目标电脑上的 `codex --version` 可用，并已通过官方 Codex 登录流程登录。
+3. 双击解压目录中的 `CodexUsagePet\CodexUsagePet.exe`。
+4. 额度会在启动后的首次 App Server 读取完成后出现；右键宠物可立即刷新。
+5. 需要随 Windows 启动时，在右键菜单勾选“开机启动”。退出时使用宠物或托盘菜单的“退出”；关闭桌宠窗口只会隐藏到托盘。
+
+Portable 包不依赖源码目录或 Python 环境，但仍依赖目标电脑上可执行且已登录的官方 Codex CLI。
+
 ### 可选安装器
 
 安装 Inno Setup 6 后运行：
