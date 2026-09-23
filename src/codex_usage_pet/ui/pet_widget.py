@@ -6,6 +6,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QWidget
 
+from codex_usage_pet.pet.animator import PetActivity, PetBehaviorController
 from codex_usage_pet.pet.states import PetState
 
 
@@ -14,6 +15,8 @@ class PetWidget(QWidget):
         super().__init__(parent)
         self.setFixedSize(150, 170)
         self.state = PetState.NORMAL
+        self.behavior = PetBehaviorController()
+        self.activity = PetActivity.IDLE
         self._frame = 0
         timer = QTimer(self)
         timer.setInterval(700)
@@ -22,17 +25,22 @@ class PetWidget(QWidget):
 
     def set_state(self, state: PetState) -> None:
         self.state = state
+        self.activity = self.behavior.set_quota_state(state)
+        self.setToolTip(f"{state.value} · {self.activity.value}")
         self.update()
 
     def _advance(self) -> None:
         self._frame = (self._frame + 1) % 8
+        self.activity = self.behavior.advance()
+        self.setToolTip(f"{self.state.value} · {self.activity.value}")
         self.update()
 
     def paintEvent(self, _event) -> None:  # type: ignore[no-untyped-def]
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        bounce = 0 if self.state in (PetState.EMPTY, PetState.CRITICAL) else math.sin(self._frame * math.pi / 4) * 2
-        painter.translate(0, bounce)
+        bounce = 0 if self.activity in (PetActivity.SLEEP, PetActivity.CRITICAL, PetActivity.SIT) else math.sin(self._frame * math.pi / 4) * 2
+        walk_shift = math.sin(self._frame * math.pi / 4) * 7 if self.activity is PetActivity.WALK else 0
+        painter.translate(walk_shift, bounce)
         outline = QPen(QColor("#393342"), 4, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
         painter.setPen(outline)
         color = {
@@ -44,9 +52,15 @@ class PetWidget(QWidget):
         }[self.state]
         painter.setBrush(QColor(color))
 
-        if self.state is PetState.EMPTY:
+        if self.activity is PetActivity.SLEEP:
             painter.drawEllipse(QRectF(24, 92, 106, 54))
             head = QRectF(18, 62, 70, 66)
+        elif self.activity is PetActivity.STRETCH:
+            painter.drawEllipse(QRectF(31, 103, 101, 45))
+            head = QRectF(17, 70, 75, 69)
+        elif self.activity is PetActivity.SIT:
+            painter.drawEllipse(QRectF(45, 91, 67, 67))
+            head = QRectF(27, 49, 84, 79)
         else:
             painter.drawEllipse(QRectF(37, 82, 82, 72))
             head = QRectF(24, 35 if self.state is PetState.NORMAL else 49, 88, 83)
@@ -87,9 +101,16 @@ class PetWidget(QWidget):
             painter.drawArc(QRectF(head.center().x(), mouth_y - 5, 9, 9), 180 * 16, 180 * 16)
 
         painter.setPen(outline)
-        if self.state is not PetState.EMPTY:
+        if self.activity is not PetActivity.SLEEP:
             tail_wave = 7 if self._frame % 2 else -4
             painter.drawArc(QRectF(103, 91 + tail_wave / 2, 38, 54), -80 * 16, 190 * 16)
         else:
             painter.setPen(QPen(QColor("#d8dcff"), 2))
             painter.drawText(QRectF(104, 50, 35, 25), Qt.AlignmentFlag.AlignCenter, "Z z")
+
+        if self.activity is PetActivity.WALK:
+            painter.setPen(QPen(QColor("#393342"), 3))
+            step = 5 if self._frame % 2 else -2
+            painter.drawLine(QPointF(57, 148), QPointF(51 + step, 160))
+            painter.drawLine(QPointF(95, 148), QPointF(101 - step, 160))
+

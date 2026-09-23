@@ -10,6 +10,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from codex_usage_pet.codex.rate_limits import parse_rate_limits
+from codex_usage_pet.pet.animator import PetActivity
 from codex_usage_pet.pet.states import PetState
 from codex_usage_pet.services.settings import AppSettings, SettingsStore
 from codex_usage_pet.services.startup import StartupManager
@@ -51,6 +52,7 @@ def test_snapshot_updates_bubble_and_pet_state(app, tmp_path: Path) -> None:
     )
     window.set_snapshot(snapshot)
     assert window.pet.state is PetState.CRITICAL
+    assert window.pet.activity is PetActivity.CRITICAL
     assert "快没粮" in window.bubble.status.text()
     assert "5%" in window.bubble.five_hour.detail.text()
     window.deleteLater()
