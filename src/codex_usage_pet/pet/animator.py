@@ -18,6 +18,7 @@ class PetActivity(str, Enum):
     LOOK_LEFT = "look_left"
     LOOK_RIGHT = "look_right"
     WAVE = "wave"
+    SLEEP_REACT = "sleep_react"
 
 
 class PetBehaviorController:

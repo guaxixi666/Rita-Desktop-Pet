@@ -28,6 +28,7 @@ _FALLBACKS = {
     PetActivity.LOOK_LEFT: (PetActivity.IDLE,),
     PetActivity.LOOK_RIGHT: (PetActivity.IDLE,),
     PetActivity.WAVE: (PetActivity.IDLE,),
+    PetActivity.SLEEP_REACT: (PetActivity.SLEEP, PetActivity.IDLE),
 }
 
 
@@ -122,6 +123,11 @@ def load_skin(manifest: Path) -> SkinPack:
                     grid=source.grid,
                     offset_x=source.offset_x,
                     offset_y=source.offset_y,
+                    frames=source.frames,
+                    fps=source.fps,
+                    loop=source.loop,
+                    cooldown_ms=source.cooldown_ms,
+                    interruptible=source.interruptible,
                     fallback_from=fallback,
                 )
                 LOGGER.info("Skin fallback: %s %s -> %s", skin_id, activity.value, fallback.value)
@@ -164,9 +170,9 @@ def _parse_theme(value: Any) -> SkinTheme:
 
 def _parse_state(root: Path, activity: PetActivity, value: Any) -> SkinStateAsset:
     data = {"file": value} if isinstance(value, str) else value
-    if not isinstance(data, dict) or not data.get("file"):
+    if not isinstance(data, dict) or not (data.get("file") or data.get("source")):
         raise InvalidSkinError(f"invalid {activity.value} state")
-    path = _safe_asset(root, str(data["file"]))
+    path = _safe_asset(root, str(data.get("file") or data["source"]))
     if not path.is_file():
         raise InvalidSkinError(f"missing asset for {activity.value}")
     grid_raw = data.get("grid", [1, 1])
@@ -175,6 +181,20 @@ def _parse_state(root: Path, activity: PetActivity, value: Any) -> SkinStateAsse
     cell = _pair(cell_raw, (0, 0), minimum=0) if cell_raw is not None else None
     if cell is not None and (cell[0] >= grid[0] or cell[1] >= grid[1]):
         raise InvalidSkinError(f"cell outside grid for {activity.value}")
+    frames_raw = data.get("frames")
+    frames: tuple[tuple[int, int], ...] = ()
+    if isinstance(frames_raw, list):
+        parsed_frames = tuple(_pair(item, (0, 0), minimum=0) for item in frames_raw)
+        if any(frame[0] >= grid[0] or frame[1] >= grid[1] for frame in parsed_frames):
+            raise InvalidSkinError(f"animation frame outside grid for {activity.value}")
+        frames = parsed_frames
+    elif isinstance(frames_raw, int) and frames_raw > 0:
+        frames = tuple((index % grid[0], index // grid[0]) for index in range(frames_raw))
+        if any(frame[1] >= grid[1] for frame in frames):
+            raise InvalidSkinError(f"animation frame outside grid for {activity.value}")
+    fps = _bounded_float(data.get("fps"), 0.0, 0.0, 30.0)
+    if frames and len(frames) > 1 and fps <= 0:
+        raise InvalidSkinError(f"animated state requires fps for {activity.value}")
     return SkinStateAsset(
         activity=activity,
         path=path,
@@ -182,6 +202,11 @@ def _parse_state(root: Path, activity: PetActivity, value: Any) -> SkinStateAsse
         grid=grid,
         offset_x=_bounded_float(data.get("offset_x"), 0.0, -160.0, 160.0),
         offset_y=_bounded_float(data.get("offset_y"), 0.0, -160.0, 160.0),
+        frames=frames,
+        fps=fps,
+        loop=bool(data.get("loop", False)),
+        cooldown_ms=_bounded_int(data.get("cooldown"), 0, 0, 600_000),
+        interruptible=bool(data.get("interruptible", True)),
     )
 
 

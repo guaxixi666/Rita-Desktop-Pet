@@ -211,7 +211,7 @@ def test_click_cooldown_blocks_repeated_action(app, tmp_path: Path) -> None:
 def test_click_preempts_hover_and_returns_to_base_pose(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
     assert window.pet.play_hover_reaction(now=10.0)
-    assert window.pet.activity is PetActivity.BLINK
+    assert window.pet.activity is PetActivity.HOVER
     assert window.pet.play_click_reaction(now=10.1)
     assert window.pet.activity is PetActivity.CLICK
     window.pet._finish_action()

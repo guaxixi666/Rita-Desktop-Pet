@@ -32,7 +32,27 @@ class SkinStateAsset:
     grid: tuple[int, int] = (1, 1)
     offset_x: float = 0.0
     offset_y: float = 0.0
+    frames: tuple[tuple[int, int], ...] = ()
+    fps: float = 0.0
+    loop: bool = False
+    cooldown_ms: int = 0
+    interruptible: bool = True
     fallback_from: PetActivity | None = None
+
+    @property
+    def frame_count(self) -> int:
+        return len(self.frames) or 1
+
+    @property
+    def duration_ms(self) -> int:
+        if self.frame_count <= 1 or self.fps <= 0:
+            return 0
+        return round(self.frame_count * 1000 / self.fps)
+
+    def cell_at(self, index: int) -> tuple[int, int]:
+        if self.frames:
+            return self.frames[index % len(self.frames)]
+        return self.cell or (0, 0)
 
 
 @dataclass(frozen=True, slots=True)

@@ -4,11 +4,11 @@ Updated: 2026-09-23
 
 ## Current phase
 
-**Release Candidate 0.1.0** — phases 1–12, Rita UI art pass, extensible Skin Pack system, and the interaction/layout stabilization pass are complete.
+**Release Candidate 0.1.0** — phases 1–12, Rita UI art pass, extensible Skin Pack system, interaction/layout stabilization, and the natural-animation pass are complete.
 
 ## Final acceptance
 
-- Automated tests: **85 passed** with both Qt offscreen and the native Windows Qt platform.
+- Automated tests: **105 passed** with both Qt offscreen and the native Windows Qt platform.
 - Frozen EXE smoke test: exit code 0; completed a real App Server read; no new App Server process remained after exit.
 - Portable test: extracted into a new `%TEMP%` directory outside the source tree, completed a real App Server read, exited 0, and left no child process behind.
 - Live Codex App Server read: account type `chatgpt`, plan `plus`, Codex bucket, 5-hour and weekly windows, credits, and reset-credit count were returned.
@@ -27,7 +27,7 @@ Updated: 2026-09-23
 - Replaced the engineering placeholder pet with an original transparent 3x2 Rita-inspired chibi sprite sheet covering idle, walk, sit, stretch, critical, and sleep.
 - Rebuilt the compact usage bubble with the Umbral Rose palette, 6 px rounded progress bars, restrained rose accents, hierarchy-aware typography, and state-specific desaturation.
 - Centralized all palette and typography values in `src/codex_usage_pet/ui/theme.py`; no default Qt blue remains in the pet, bubble, tray, or menus.
-- Added hover response, blink, state fade, panel fade, click-to-toggle, recovered stretch, and per-pose optical alignment while preserving the existing low-frequency animation controller.
+- Added state fade, panel fade, click-to-toggle, recovered stretch, and per-pose optical alignment. The later natural-animation pass replaced the original painted eyelid and single-pose interaction placeholders.
 - Visual QA artifacts: `artifacts/ui/rita-ui-final.png` and `artifacts/ui/rita-states-final.png`. The final composition was reviewed and adjusted once to reduce the visual gap between the bubble and narrow idle pose.
 - Final rebuilt EXE smoke test: exit 0, real App Server read (`5h used=80%`, `weekly used=48%` at 2026-09-23 12:01 +08:00), and zero newly remaining App Server processes.
 - Final portable test: freshly extracted outside the source tree, exit 0, the same real quota read, zero newly remaining App Server processes, and all release/license files present.
@@ -45,8 +45,8 @@ Updated: 2026-09-23
 ## Interaction and layout acceptance
 
 - Removed the permanent idle walk/bob/sway sequence. NORMAL now holds a static idle pose; no timer changes the pet window position.
-- Hover triggers one 520 ms blink per pointer entry with a 1.5-second cooldown. Click has higher priority, interrupts a just-started hover or autonomous action, plays one 720 ms response with a 1-second cooldown, then returns to the quota-driven pose.
-- NORMAL schedules a probabilistic blink/stretch/sit at a fresh random 30–120-second interval. LOW, CRITICAL, EMPTY, and RECOVERED keep priority and cannot be overridden by random idle actions.
+- Hover triggers its dedicated 6-frame/600 ms glance-and-smile sequence once per pointer entry with a 1.5-second cooldown. Click has higher priority, interrupts Hover or an interruptible autonomous action, plays its dedicated 8-frame/800 ms response, then returns to the quota-driven pose.
+- NORMAL schedules weighted Blink/Wave/Stretch actions at a fresh random 30–120-second interval. LOW, CRITICAL, EMPTY, and RECOVERED keep priority and cannot be overridden by random idle actions.
 - Split the character and quota bubble into independent top-level transparent tool windows. The character keeps a persisted bottom-center screen anchor; bubble show/hide, direction changes, pose changes, and skin changes do not participate in character layout.
 - Runtime alpha bounding-box cropping uses threshold 15 and a 4 px safe margin. The default idle window changed from 232x244 (56,608 px) to 137x204 (27,948 px), a 50.63% area reduction.
 - Native capture measured the same character anchor `(1865, 1001)` and geometry `(1767, 789, 137, 204)` before and after hiding the bubble: exact delta `(0, 0)`. A ten-cycle show/hide regression test also remained drift-free.
@@ -60,7 +60,18 @@ Updated: 2026-09-23
 - Corrected 5h/weekly classification if an App Server returns the windows in reversed field order.
 - Extended frozen smoke duration so it validates a real App Server handshake and first quota read, rather than only Qt startup/shutdown.
 - Retained ownership of the tray context menu and detached it during shutdown, removing a nondeterministic Windows fast-exit crash exposed by the fresh portable smoke test.
-- Fixed the idle blink frame's Windows Qt `QPen` overload mismatch. The fault appeared only when frame 7 rendered after several seconds and caused `0xC0000409` during smoke tests; a direct blink-frame render regression test now covers it.
+- Fixed the former painted-eyelid blink's Windows Qt `QPen` overload mismatch. The painted overlay has since been retired in favor of a six-frame sprite sequence; direct sequence rendering remains covered.
+
+## Natural animation acceptance
+
+- Added newly rendered transparent sprite sequences for Blink (6 frames/14 FPS), Hover (6/10), Click (8/10), Wave (8/10), Stretch (8/10), and Sleep React (8/9). Idle remains static; existing true sit, fatigued critical, and curled sleep poses remain in use.
+- Click no longer reuses Stretch. EMPTY clicks now play Sleep React and return to sleep. Random NORMAL actions use weighted Blink/Wave/Stretch choices; quota states still block random actions.
+- Animation timing, loop behavior, cooldown, and interruptibility are declared in each skin manifest instead of being hardcoded per action in the widget.
+- Runtime frame crops are cached on first use, bounded shared alpha metadata is reused, and all per-skin caches are cleared on skin change. No frame reads from disk occur during playback.
+- Every sequence uses a normalized transparent 512x512 logical cell. Automated alpha audits measured a 0-pixel bottom-edge delta across every frame of all six sequences.
+- Each animation uses its whole-sequence alpha union for window sizing. Native contact-sheet rendering and tests confirmed constant geometry and a fixed bottom-center screen anchor for every frame; the usage bubble also remains fixed during Click.
+- Visual QA contact sheets are in `artifacts/animations/`: Blink, Hover, Click, Wave, Stretch, Sleep React, plus the idle/sit/critical/sleep state poses. Generated candidates with only whole-image motion were not used.
+- Final rebuilt EXE and freshly extracted portable ZIP both exited 0, read the real App Server (`5h used=58%`, `weekly used=60%` at 2026-09-23 17:21 +08:00), included both skins' animation assets and all license files, and left zero new App Server processes.
 
 ## Release artifacts
 

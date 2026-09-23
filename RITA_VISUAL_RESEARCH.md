@@ -29,7 +29,9 @@ Research date: 2026-09-23
 
 ## Production decision
 
-The shipped sheet was generated anew from this written brief using OpenAI image
-generation, then inspected at desktop scale. It is not a crop, trace, extracted
-game texture, or reproduction of any reference composition. The final pass
-added transparent padding to prevent frame-edge clipping.
+The shipped base sheet and interaction animation sheets were generated anew
+from this written brief using OpenAI image generation, then inspected frame by
+frame at desktop scale. They are not crops, traces, extracted game textures, or
+reproductions of a reference composition. The animation production pass
+normalized every cell to a transparent 512 x 512 canvas and aligned each
+sequence's alpha bottom edge to a zero-pixel delta before runtime scaling.

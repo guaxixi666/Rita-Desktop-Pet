@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import QEasingCurve, QEvent, QPoint, QPropertyAnimation, QRect, Qt, QTimer, Signal
+from PySide6.QtCore import QEasingCurve, QEvent, QPoint, QPropertyAnimation, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QActionGroup, QCursor, QGuiApplication
 from PySide6.QtWidgets import QApplication, QInputDialog, QMenu, QMessageBox, QWidget
 
@@ -112,7 +112,7 @@ class PetWindow(QWidget):
         }[state]
         self.bubble.set_pet_message(message)
         if state is PetState.RECOVERED:
-            QTimer.singleShot(4500, self._finish_recovered)
+            QTimer.singleShot(max(850, self.pet.current_animation_duration_ms + 100), self._finish_recovered)
 
     def set_error(self, text: str) -> None:
         self.bubble.set_error(text)
@@ -459,7 +459,7 @@ class PetWindow(QWidget):
         self.resize(self.pet.size())
         self.pet.move(0, 0)
         if anchor is not None:
-            self._move_to_anchor(anchor)
+            self._move_to_anchor(anchor, clamp=False)
 
     def _anchor_for_top_left(self, top_left: QPoint) -> QPoint:
         offset = self.pet.anchor_offset
@@ -469,8 +469,8 @@ class PetWindow(QWidget):
         offset = self.pet.anchor_offset
         return anchor - QPoint(round(offset.x()), round(offset.y()))
 
-    def _move_to_anchor(self, anchor: QPoint) -> None:
-        bounded = self._bounded_anchor(anchor)
+    def _move_to_anchor(self, anchor: QPoint, *, clamp: bool = True) -> None:
+        bounded = self._bounded_anchor(anchor) if clamp else QPoint(anchor)
         self._anchor = QPoint(bounded)
         self.move(self._top_left_for_anchor(bounded))
         self._position_bubble()
@@ -501,14 +501,16 @@ class PetWindow(QWidget):
         if not screen:
             return
         area = screen.availableGeometry()
-        pet_rect = QRect(self.pos(), self.size())
-        left_space = pet_rect.left() - area.left() - self.BUBBLE_GAP
-        right_space = area.right() - pet_rect.right() - self.BUBBLE_GAP
+        left_extent, right_extent = self.pet.visual_extents
+        left_edge = self._anchor.x() - left_extent
+        right_edge = self._anchor.x() + right_extent
+        left_space = left_edge - area.left() - self.BUBBLE_GAP
+        right_space = area.right() - right_edge - self.BUBBLE_GAP
         if right_space >= self.bubble.width() and (left_space < self.bubble.width() or right_space > left_space):
-            x = pet_rect.right() + 1 + self.BUBBLE_GAP
+            x = right_edge + self.BUBBLE_GAP
             self._bubble_side = "right"
         else:
-            x = pet_rect.left() - self.BUBBLE_GAP - self.bubble.width()
+            x = left_edge - self.BUBBLE_GAP - self.bubble.width()
             self._bubble_side = "left"
         x = max(area.left(), min(x, area.right() - self.bubble.width() + 1))
         y = self._anchor.y() - self.bubble.height()
