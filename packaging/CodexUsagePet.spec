@@ -38,6 +38,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
+    icon=[str(project_root / "assets" / "codex_usage_pet.ico")],
     disable_windowed_traceback=False,
 )
 

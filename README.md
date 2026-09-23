@@ -13,7 +13,7 @@
 - 透明、无边框、置顶、`Qt.Tool` 窗口，不显示普通任务栏按钮
 - 拖动、锁定位置、位置持久化、跨屏边界钳制、透明度
 - NORMAL / LOW / CRITICAL / EMPTY / RECOVERED 状态
-- 低频原创 QPainter 动画（idle、low、critical、sleep）
+- 低频原创 QPainter 动画（idle、walk、sit、stretch、critical、sleep）
 - 右键菜单与系统托盘：刷新、额度显隐、置顶、锁定、透明度、刷新间隔、开机启动、日志、关于、退出
 - HKCU 用户级开机启动，不需要管理员权限
 - 60 秒默认轮询、事件触发刷新、失败退避、自动恢复、进程退出清理
@@ -116,6 +116,7 @@ $env:QT_QPA_PLATFORM = "offscreen"
 
 ```text
 dist\CodexUsagePet\CodexUsagePet.exe
+dist\CodexUsagePet-portable.zip
 ```
 
 目标电脑仍需安装并登录 Codex CLI；应用本身不捆绑或复制 Codex 凭据。当前构建未进行代码签名，因此首次运行可能出现 Windows SmartScreen 提示。
@@ -156,5 +157,5 @@ assets/
 
 项目本身采用 MIT 许可证。研究记录见 [OPEN_SOURCE_RESEARCH.md](OPEN_SOURCE_RESEARCH.md)，attribution 见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。四个指定参考项目均为 MIT；本仓库没有复制它们的源码模块或素材，而是重新实现通信、UI 与状态逻辑。
 
-运行时使用 PySide6 Essentials / Qt，发布构建时需要一并保留其相应许可证文件。
+运行时使用 PySide6 Essentials / Qt。发布目录包含运行时许可说明，Qt 动态库保持独立可替换。
 
