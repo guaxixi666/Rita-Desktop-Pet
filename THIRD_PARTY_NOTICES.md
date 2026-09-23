@@ -28,3 +28,7 @@ generated fan art based on a written visual brief; it does not redistribute
 official game art, extracted textures, logos, watermarks, or third-party fan
 art.
 
+The built-in `rita_moonlit_rose` Skin Pack is a theme demonstration that keeps
+an independent copy of the same project-created sprite sheet. It introduces no
+additional third-party artwork or license.
+

@@ -4,11 +4,11 @@ Updated: 2026-09-23
 
 ## Current phase
 
-**Release Candidate 0.1.0** — phases 1–12, final acceptance, and the Rita UI art pass are complete.
+**Release Candidate 0.1.0** — phases 1–12, Rita UI art pass, and the extensible Skin Pack system are complete.
 
 ## Final acceptance
 
-- Automated tests: **44 passed** with both Qt offscreen and the native Windows Qt platform.
+- Automated tests: **65 passed** with both Qt offscreen and the native Windows Qt platform.
 - Frozen EXE smoke test: exit code 0; completed a real App Server read; no new App Server process remained after exit.
 - Portable test: extracted into a new `%TEMP%` directory outside the source tree, completed a real App Server read, exited 0, and left no child process behind.
 - Live Codex App Server read: account type `chatgpt`, plan `plus`, Codex bucket, 5-hour and weekly windows, credits, and reset-credit count were returned.
@@ -32,6 +32,16 @@ Updated: 2026-09-23
 - Final rebuilt EXE smoke test: exit 0, real App Server read (`5h used=80%`, `weekly used=48%` at 2026-09-23 12:01 +08:00), and zero newly remaining App Server processes.
 - Final portable test: freshly extracted outside the source tree, exit 0, the same real quota read, zero newly remaining App Server processes, and all release/license files present.
 
+## Skin Pack acceptance
+
+- Added manifest-driven Skin Packs with independent state assets, theme colors, decorator, preferred dimensions, anchors, and per-pose offsets. New folders are discovered without modifying application code.
+- Migrated the default Rita appearance to `skins/rita_umbral_rose/` and added the independent `rita_moonlit_rose` cool-theme demonstration pack. Both packages contain all six state mappings; the second intentionally reuses the same original project art under its own directory.
+- Added manual selection, no-repeat random selection, rescanning, user skin directory access, 6/12/24/48-hour intervals, daily fixed local times, and custom `HH:MM` input.
+- Persisted `current_skin`, auto mode, interval, fixed time, last successful/change-cycle UTC timestamp, and no-repeat preference. Restart, 24-hour due, 72-hour overdue, no catch-up loop, clock rollback, and fixed-time behavior are covered by deterministic tests.
+- Missing walk/sit/stretch/sleep states fall back to idle; critical falls back to sit and then idle. Invalid manifests are skipped and logged.
+- Native visual switch test changed Umbral Rose to Moonlit Rose while CRITICAL and confirmed `state=critical`, `activity=critical`, unchanged window position, and the new `#8F7EB8` theme. Evidence: `artifacts/ui/skin-rita-umbral.png` and `artifacts/ui/skin-rita-moonlit.png`.
+- Frozen and freshly extracted portable smoke tests both exited 0, performed a real App Server read, loaded both bundled manifests, and left zero new App Server processes. The final acceptance read was 5h used 4% / weekly used 52% at 2026-09-23 15:45 +08:00; values are time-sensitive.
+
 ## Bugs fixed during final acceptance
 
 - Delayed Codex executable resolution until the refresh worker starts, so a missing CLI shows the normal unavailable state instead of crashing application construction.
@@ -39,6 +49,7 @@ Updated: 2026-09-23
 - Corrected 5h/weekly classification if an App Server returns the windows in reversed field order.
 - Extended frozen smoke duration so it validates a real App Server handshake and first quota read, rather than only Qt startup/shutdown.
 - Retained ownership of the tray context menu and detached it during shutdown, removing a nondeterministic Windows fast-exit crash exposed by the fresh portable smoke test.
+- Fixed the idle blink frame's Windows Qt `QPen` overload mismatch. The fault appeared only when frame 7 rendered after several seconds and caused `0xC0000409` during smoke tests; a direct blink-frame render regression test now covers it.
 
 ## Release artifacts
 

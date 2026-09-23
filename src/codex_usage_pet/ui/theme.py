@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from PySide6.QtGui import QColor, QFont
 
+from codex_usage_pet.skins.models import SkinTheme
+
 BACKGROUND = "#17171D"
 SURFACE = "#24222B"
 CREAM = "#F4F0EE"
@@ -14,6 +16,7 @@ LAVENDER_GRAY = "#958594"
 TEXT = "#F3ECEE"
 TEXT_MUTED = "#BDAFB5"
 TRACK = "#35313A"
+DEFAULT_THEME = SkinTheme()
 
 FONT_FAMILY = "Segoe UI Variable, Segoe UI, Microsoft YaHei UI"
 
@@ -29,20 +32,24 @@ def rgba(hex_color: str, alpha: int) -> str:
     return f"rgba({color.red()},{color.green()},{color.blue()},{alpha})"
 
 
-MENU_STYLE = f"""
+def menu_style(palette: SkinTheme) -> str:
+    return f"""
 QMenu {{
-    background: {SURFACE};
-    color: {TEXT};
-    border: 1px solid {ROSE_DEEP};
+    background: {palette.panel};
+    color: {palette.text_primary};
+    border: 1px solid {palette.border};
     border-radius: 9px;
     padding: 6px;
     font-family: '{FONT_FAMILY}';
     font-size: 12px;
 }}
 QMenu::item {{ padding: 7px 26px 7px 12px; border-radius: 6px; }}
-QMenu::item:selected {{ background: {rgba(ROSE, 72)}; color: {CREAM}; }}
-QMenu::item:checked {{ color: {ROSE_PALE}; }}
-QMenu::separator {{ height: 1px; background: {rgba(ROSE, 55)}; margin: 5px 8px; }}
+QMenu::item:selected {{ background: {rgba(palette.primary, 72)}; color: {palette.text_primary}; }}
+QMenu::item:checked {{ color: {palette.low}; }}
+QMenu::separator {{ height: 1px; background: {rgba(palette.primary, 55)}; margin: 5px 8px; }}
 QMenu::indicator {{ width: 10px; height: 10px; }}
-QMenu::indicator:checked {{ background: {ROSE}; border-radius: 5px; }}
+QMenu::indicator:checked {{ background: {palette.primary}; border-radius: 5px; }}
 """
+
+
+MENU_STYLE = menu_style(DEFAULT_THEME)

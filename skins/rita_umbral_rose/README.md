@@ -1,4 +1,4 @@
-# Rita-inspired desktop-pet sprites
+# Rita-inspired desktop-pet Skin Pack
 
 `rita_sprite_sheet.png` is an original, newly generated 3×2 transparent sprite
 sheet made for Codex Usage Pet. It was produced with OpenAI image generation
@@ -13,6 +13,6 @@ idle | walk | sit
 stretch | critical | sleep
 ```
 
-Each frame occupies one exact third of the image width and one exact half of
-the image height. The code reads the sheet by those normalized cells, so a
-replacement asset can use the same layout without changing animation logic.
+The frame mapping, theme, size, anchors, and per-pose optical offsets are all
+declared in `skin.json`. A replacement Skin Pack can use individual PNG files
+or a grid-based sprite sheet without changing application code.

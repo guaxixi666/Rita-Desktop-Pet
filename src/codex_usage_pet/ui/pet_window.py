@@ -3,18 +3,21 @@ from __future__ import annotations
 import os
 from collections.abc import Callable
 
-from PySide6.QtCore import QEvent, QPoint, Qt, QTimer, Signal
+from PySide6.QtCore import QEasingCurve, QEvent, QPoint, QPropertyAnimation, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QActionGroup, QCursor, QGuiApplication
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QMenu, QMessageBox, QWidget
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QInputDialog, QMenu, QMessageBox, QWidget
 
 from codex_usage_pet.codex.models import UsageSnapshot
 from codex_usage_pet.pet.states import PetState, PetStateTracker, state_for_remaining
 from codex_usage_pet.services.paths import log_dir
 from codex_usage_pet.services.settings import AppSettings, SettingsStore
 from codex_usage_pet.services.startup import StartupManager
+from codex_usage_pet.skins.loader import user_skin_dir
+from codex_usage_pet.skins.manager import SkinManager
+from codex_usage_pet.skins.models import SkinPack
 
 from .pet_widget import PetWidget
-from .theme import MENU_STYLE
+from .theme import menu_style
 from .usage_bubble import UsageBubble
 
 
@@ -22,23 +25,29 @@ class PetWindow(QWidget):
     refresh_requested = Signal()
     interval_changed = Signal(int)
     quit_requested = Signal()
+    skin_changed = Signal(object)
+    menu_changed = Signal()
 
     def __init__(
         self,
         settings: AppSettings,
         store: SettingsStore,
         startup: StartupManager,
+        skin_manager: SkinManager | None = None,
     ) -> None:
         super().__init__()
         self.settings = settings
         self.store = store
         self.startup = startup
+        self.skin_manager = skin_manager or SkinManager(settings, store)
+        self.current_skin = self.skin_manager.current
         self._drag_offset: QPoint | None = None
         self._press_global: QPoint | None = None
         self._snapshot: UsageSnapshot | None = None
         self._state_tracker = PetStateTracker()
-        self.pet = PetWidget(self)
+        self.pet = PetWidget(self.current_skin, self)
         self.bubble = UsageBubble(self)
+        self.bubble.set_skin(self.current_skin)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(0)
@@ -50,6 +59,18 @@ class PetWindow(QWidget):
         self._save_timer.setSingleShot(True)
         self._save_timer.setInterval(350)
         self._save_timer.timeout.connect(self.save_settings)
+        self._pending_skin: SkinPack | None = None
+        self._skin_fade_out = QPropertyAnimation(self.pet._opacity_effect, b"opacity", self)
+        self._skin_fade_out.setDuration(190)
+        self._skin_fade_out.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._skin_fade_out.finished.connect(self._finish_skin_swap)
+        self._skin_fade_in = QPropertyAnimation(self.pet._opacity_effect, b"opacity", self)
+        self._skin_fade_in.setDuration(230)
+        self._skin_fade_in.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._auto_skin_timer = QTimer(self)
+        self._auto_skin_timer.setInterval(60_000)
+        self._auto_skin_timer.timeout.connect(self.check_auto_skin)
+        self._auto_skin_timer.start()
         self._apply_window_flags()
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
@@ -58,6 +79,7 @@ class PetWindow(QWidget):
         for target in (self, self.pet, self.bubble):
             target.installEventFilter(self)
         QTimer.singleShot(0, self._restore_position)
+        QTimer.singleShot(0, self.check_auto_skin)
 
     def set_snapshot(self, snapshot: UsageSnapshot) -> None:
         self._snapshot = snapshot
@@ -81,7 +103,7 @@ class PetWindow(QWidget):
 
     def build_menu(self) -> QMenu:
         menu = QMenu()
-        menu.setStyleSheet(MENU_STYLE)
+        menu.setStyleSheet(menu_style(self.current_skin.theme))
         refresh = menu.addAction("刷新额度")
         refresh.triggered.connect(self.refresh_requested.emit)
         show_usage = menu.addAction("显示额度")
@@ -96,6 +118,67 @@ class PetWindow(QWidget):
         locked.setCheckable(True)
         locked.setChecked(self.settings.locked)
         locked.triggered.connect(self.set_locked)
+
+        skin_menu = menu.addMenu("皮肤")
+        current = skin_menu.addAction(f"当前：{self.current_skin.name}")
+        current.setEnabled(False)
+        skin_menu.addSeparator()
+        skin_group = QActionGroup(skin_menu)
+        for pack in sorted(self.skin_manager.packs.values(), key=lambda item: item.name.casefold()):
+            action = skin_menu.addAction(pack.name)
+            action.setCheckable(True)
+            action.setChecked(pack.id == self.current_skin.id)
+            action.triggered.connect(
+                lambda _checked=False, skin_id=pack.id: self.change_skin(skin_id, reason="manual")
+            )
+            skin_group.addAction(action)
+        skin_menu.addSeparator()
+        random_action = skin_menu.addAction("随机换一个")
+        random_action.triggered.connect(self.random_skin)
+
+        auto_menu = skin_menu.addMenu("自动换肤")
+        auto_group = QActionGroup(auto_menu)
+        auto_group.setExclusive(True)
+        off = auto_menu.addAction("关闭")
+        off.setCheckable(True)
+        off.setChecked(not self.settings.auto_skin_enabled)
+        off.triggered.connect(lambda: self.set_auto_skin_interval(None))
+        auto_group.addAction(off)
+        for hours in (6, 12, 24, 48):
+            action = auto_menu.addAction(f"每 {hours} 小时")
+            action.setCheckable(True)
+            action.setChecked(
+                self.settings.auto_skin_enabled
+                and self.settings.auto_skin_mode == "interval"
+                and self.settings.auto_skin_interval_hours == hours
+            )
+            action.triggered.connect(
+                lambda _checked=False, value=hours: self.set_auto_skin_interval(value)
+            )
+            auto_group.addAction(action)
+
+        fixed_menu = auto_menu.addMenu("每天固定时间")
+        fixed_group = QActionGroup(fixed_menu)
+        for value in ("00:00", "08:00", "12:00", "18:00"):
+            action = fixed_menu.addAction(value)
+            action.setCheckable(True)
+            action.setChecked(
+                self.settings.auto_skin_enabled
+                and self.settings.auto_skin_mode == "fixed_time"
+                and self.settings.auto_skin_fixed_time == value
+            )
+            action.triggered.connect(
+                lambda _checked=False, fixed=value: self.set_auto_skin_fixed_time(fixed)
+            )
+            fixed_group.addAction(action)
+        custom = fixed_menu.addAction("自定义时间…")
+        custom.triggered.connect(self.choose_auto_skin_fixed_time)
+
+        skin_menu.addSeparator()
+        rescan = skin_menu.addAction("重新扫描皮肤")
+        rescan.triggered.connect(self.rescan_skins)
+        open_skins = skin_menu.addAction("打开皮肤目录")
+        open_skins.triggered.connect(self.open_skin_directory)
 
         opacity_menu = menu.addMenu("透明度")
         opacity_group = QActionGroup(opacity_menu)
@@ -183,6 +266,85 @@ class PetWindow(QWidget):
         except Exception as exc:
             QMessageBox.warning(self, "Codex Usage Pet", f"无法修改开机启动：{exc}")
 
+    def change_skin(self, skin_id: str, *, reason: str = "manual") -> None:
+        pack = self.skin_manager.change(skin_id, reason=reason)
+        if pack is None or pack.id == self.current_skin.id:
+            return
+        self._queue_skin_swap(pack)
+
+    def random_skin(self) -> None:
+        previous = self.current_skin.id
+        pack = self.skin_manager.random_change(reason="random")
+        if pack.id != previous:
+            self._queue_skin_swap(pack)
+
+    def check_auto_skin(self) -> None:
+        previous = self.current_skin.id
+        pack = self.skin_manager.maybe_auto_change()
+        if pack is not None and pack.id != previous:
+            self._queue_skin_swap(pack)
+
+    def set_auto_skin_interval(self, hours: int | None) -> None:
+        self.skin_manager.set_auto_interval(hours)
+        self.menu_changed.emit()
+
+    def set_auto_skin_fixed_time(self, value: str) -> None:
+        self.skin_manager.set_auto_fixed_time(value)
+        self.menu_changed.emit()
+
+    def choose_auto_skin_fixed_time(self) -> None:
+        value, accepted = QInputDialog.getText(
+            self,
+            "每天固定时间换肤",
+            "本地时间（HH:MM）：",
+            text=self.settings.auto_skin_fixed_time,
+        )
+        if not accepted:
+            return
+        try:
+            self.set_auto_skin_fixed_time(value.strip())
+        except ValueError:
+            QMessageBox.warning(self, "Codex Usage Pet", "时间格式应为 HH:MM，例如 08:30。")
+
+    def rescan_skins(self) -> None:
+        pack = self.skin_manager.rescan()
+        # Reload even when the ID is unchanged: users may have replaced the
+        # current pack's images or theme in place before choosing rescan.
+        self._queue_skin_swap(pack)
+        self.menu_changed.emit()
+
+    def open_skin_directory(self) -> None:
+        path = user_skin_dir()
+        path.mkdir(parents=True, exist_ok=True)
+        if os.name == "nt":
+            os.startfile(path)  # type: ignore[attr-defined]
+
+    def _finish_skin_swap(self) -> None:
+        pack = self._pending_skin
+        if pack is None:
+            return
+        self._pending_skin = None
+        old_position = self.pos()
+        self.current_skin = pack
+        self.pet.apply_skin(pack)
+        self.bubble.set_skin(pack)
+        self.move(old_position)
+        self.pet._opacity_effect.setOpacity(0.0)
+        self._skin_fade_in.setStartValue(0.0)
+        self._skin_fade_in.setEndValue(1.0)
+        self._skin_fade_in.start()
+        self.skin_changed.emit(pack)
+        self.menu_changed.emit()
+
+    def _queue_skin_swap(self, pack: SkinPack) -> None:
+        self._pending_skin = pack
+        self.pet._transition.stop()
+        self._skin_fade_in.stop()
+        self._skin_fade_out.stop()
+        self._skin_fade_out.setStartValue(self.pet._opacity_effect.opacity())
+        self._skin_fade_out.setEndValue(0.0)
+        self._skin_fade_out.start()
+
     def open_logs(self) -> None:
         path = log_dir()
         path.mkdir(parents=True, exist_ok=True)
@@ -193,7 +355,7 @@ class PetWindow(QWidget):
         QMessageBox.about(
             self,
             "关于 Codex Usage Pet",
-            "Codex Usage Pet 0.1.0\n\nRita 风格原创 Q 版桌宠素材。\n"
+            "Codex Usage Pet 0.1.0\n\n支持独立 Skin Pack、手动与定时自动换肤。\n"
             "额度来自本机官方 Codex App Server。\n不读取浏览器 Cookie，不保存认证凭据。",
         )
 

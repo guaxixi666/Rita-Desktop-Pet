@@ -46,13 +46,26 @@ def test_window_is_frameless_tool_topmost_and_translucent(app, tmp_path: Path) -
 
 def test_rita_sprite_sheet_has_transparent_cells() -> None:
     image = QImage(
-        str(Path(__file__).parents[1] / "assets" / "rita" / "rita_sprite_sheet.png")
+        str(
+            Path(__file__).parents[1]
+            / "skins"
+            / "rita_umbral_rose"
+            / "rita_sprite_sheet.png"
+        )
     )
     assert not image.isNull()
     assert image.hasAlphaChannel()
     assert image.width() % 3 == 0
     assert image.height() % 2 == 0
     assert image.pixelColor(0, 0).alpha() == 0
+
+
+def test_idle_blink_frame_renders_without_paint_error(app, tmp_path: Path) -> None:
+    window = make_window(tmp_path)
+    window.pet._frame = 7
+    image = window.pet.grab().toImage()
+    assert not image.isNull()
+    window.deleteLater()
 
 
 def test_snapshot_updates_bubble_and_pet_state(app, tmp_path: Path) -> None:

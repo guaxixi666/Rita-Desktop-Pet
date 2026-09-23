@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "rita_moonlit_rose",
+  "name": "Rita · Moonlit Rose",
+  "author": "Codex Usage Pet",
+  "version": "1.0",
+  "description": "A cool moonlit theme variant packaged independently for the Skin Pack demo.",
+  "preview": "preview.png",
+  "preferred_width": 222,
+  "preferred_height": 222,
+  "anchor_x": 0,
+  "anchor_y": -3,
+  "theme": {
+    "background": "#15151C",
+    "panel": "#23232F",
+    "progress_track": "#343443",
+    "primary": "#8F7EB8",
+    "highlight": "#B9A8DD",
+    "critical": "#9B5278",
+    "empty": "#777382",
+    "low": "#C9BCD9",
+    "text_primary": "#F1EEF6",
+    "text_secondary": "#B8B1C5",
+    "border": "#62517F",
+    "decorator": "◇"
+  },
+  "states": {
+    "idle": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [0, 0], "offset_x": -37},
+    "walk": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [1, 0], "offset_x": -22},
+    "sit": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [2, 0], "offset_x": -4},
+    "stretch": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [0, 1], "offset_x": -19},
+    "critical": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [1, 1], "offset_x": -10},
+    "sleep": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [2, 1], "offset_x": -10}
+  }
+}

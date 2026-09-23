@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from codex_usage_pet.codex.models import UsageSnapshot, UsageWindow
 from codex_usage_pet.pet.states import PetState
+from codex_usage_pet.skins.models import SkinPack, SkinTheme
 
 from . import theme
 
@@ -24,6 +25,7 @@ class UsageRow(QWidget):
     def __init__(self, title: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.title = QLabel(title)
+        self._theme = theme.DEFAULT_THEME
         self.title.setObjectName("rowTitle")
         self.detail = QLabel("—")
         self.detail.setObjectName("percentage")
@@ -54,14 +56,17 @@ class UsageRow(QWidget):
             return
         remaining = int(round(window.remaining_percent))
         self.bar.setValue(remaining)
-        color = _progress_color(remaining)
+        color = _progress_color(remaining, self._theme)
         self.bar.setStyleSheet(
-            f"QProgressBar{{background:{theme.TRACK};border:0;border-radius:3px;}}"
+            f"QProgressBar{{background:{self._theme.progress_track};border:0;border-radius:3px;}}"
             f"QProgressBar::chunk{{background:{color};border-radius:3px;}}"
-            f"QProgressBar:hover::chunk{{background:{theme.ROSE_HIGHLIGHT};}}"
+            f"QProgressBar:hover::chunk{{background:{self._theme.highlight};}}"
         )
         self.detail.setText(f"{remaining}%")
         self.reset.setText(_format_reset(window.resets_at, weekly))
+
+    def set_theme(self, palette: SkinTheme) -> None:
+        self._theme = palette
 
 
 class UsageBubble(QWidget):
@@ -74,12 +79,13 @@ class UsageBubble(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self._snapshot: UsageSnapshot | None = None
         self._state = PetState.NORMAL
+        self._theme = theme.DEFAULT_THEME
 
         self.panel = QWidget(self)
         self.panel.setObjectName("usageBubble")
 
-        rose = QLabel("✿")
-        rose.setObjectName("roseMark")
+        self.rose = QLabel(self._theme.decorator)
+        self.rose.setObjectName("roseMark")
         title = QLabel("CODEX")
         title.setObjectName("title")
         self.plan = QLabel("")
@@ -87,7 +93,7 @@ class UsageBubble(QWidget):
         header = QHBoxLayout()
         header.setContentsMargins(0, 0, 0, 0)
         header.setSpacing(6)
-        header.addWidget(rose)
+        header.addWidget(self.rose)
         header.addWidget(title)
         header.addStretch(1)
         header.addWidget(self.plan)
@@ -157,6 +163,14 @@ class UsageBubble(QWidget):
         if self._snapshot:
             self._refresh_text()
 
+    def set_skin(self, skin: SkinPack) -> None:
+        self._theme = skin.theme
+        self.rose.setText(skin.theme.decorator)
+        self.five_hour.set_theme(skin.theme)
+        self.weekly.set_theme(skin.theme)
+        self._apply_style()
+        self._refresh_text()
+
     def set_error(self, text: str) -> None:
         self.status.setText(text)
 
@@ -189,32 +203,33 @@ class UsageBubble(QWidget):
 
     def _apply_style(self) -> None:
         dimmed = self._state is PetState.EMPTY
-        background = theme.rgba(theme.BACKGROUND if dimmed else theme.SURFACE, 220)
-        border = theme.LAVENDER_GRAY if dimmed else theme.ROSE_DEEP
-        accent = theme.LAVENDER_GRAY if dimmed else theme.ROSE
+        palette = self._theme
+        background = theme.rgba(palette.background if dimmed else palette.panel, 220)
+        border = palette.empty if dimmed else palette.border
+        accent = palette.empty if dimmed else palette.primary
         self.panel.setStyleSheet(
             f"#usageBubble{{background:{background};border:1px solid {border};border-radius:15px;}}"
-            f"QLabel{{color:{theme.TEXT};font-family:'{theme.FONT_FAMILY}';font-size:11px;font-weight:400;}}"
+            f"QLabel{{color:{palette.text_primary};font-family:'{theme.FONT_FAMILY}';font-size:11px;font-weight:400;}}"
             f"#title{{font-size:13px;font-weight:600;letter-spacing:1px;}}"
             f"#roseMark{{color:{accent};font-size:10px;}}"
-            f"#plan{{color:{theme.TEXT_MUTED};font-size:9px;letter-spacing:1px;}}"
-            f"#rowTitle{{color:{theme.TEXT_MUTED};font-size:10px;font-weight:600;letter-spacing:1px;}}"
-            f"#percentage{{color:{theme.ROSE_PALE};font-size:14px;font-weight:600;}}"
-            f"#reset{{color:{theme.TEXT_MUTED};font-size:9px;}}"
-            f"#credits{{color:{theme.ROSE_PALE};font-size:9px;font-weight:600;letter-spacing:1px;}}"
+            f"#plan{{color:{palette.text_secondary};font-size:9px;letter-spacing:1px;}}"
+            f"#rowTitle{{color:{palette.text_secondary};font-size:10px;font-weight:600;letter-spacing:1px;}}"
+            f"#percentage{{color:{palette.low};font-size:14px;font-weight:600;}}"
+            f"#reset{{color:{palette.text_secondary};font-size:9px;}}"
+            f"#credits{{color:{palette.low};font-size:9px;font-weight:600;letter-spacing:1px;}}"
             f"#status{{color:{accent};font-size:10px;}}"
-            f"#decorLine{{background:{theme.rgba(theme.ROSE, 55)};}}"
+            f"#decorLine{{background:{theme.rgba(palette.primary, 55)};}}"
         )
 
 
-def _progress_color(remaining: int) -> str:
+def _progress_color(remaining: int, palette: SkinTheme) -> str:
     if remaining <= 0:
-        return theme.LAVENDER_GRAY
+        return palette.empty
     if remaining < 10:
-        return theme.ROSE_DEEP
+        return palette.critical
     if remaining <= 30:
-        return theme.ROSE_PALE
-    return theme.ROSE
+        return palette.low
+    return palette.primary
 
 
 def _format_reset(value: datetime | None, weekly: bool) -> str:

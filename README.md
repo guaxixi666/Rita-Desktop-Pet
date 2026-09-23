@@ -2,7 +2,7 @@
 
 一个轻量 Windows 桌面宠物：常驻桌面显示 Codex 5 小时与 weekly 额度，并用宠物姿态表达额度是否充足。
 
-当前版本是 Release Candidate 0.1.0。界面采用 Rita / Umbral Rose 风格的原创 Q 版透明 sprite sheet；素材与代码分离，后续可以直接替换。
+当前版本是 Release Candidate 0.1.0。角色、动画与整套 UI 配色由外置 Skin Pack 驱动，新增角色原则上不需要修改主程序。
 
 ## 已实现
 
@@ -16,7 +16,9 @@
 - Rita / Umbral Rose 统一配色、轻量悬浮额度气泡与淡入淡出
 - 低频透明 sprite 动画（idle、walk、sit、stretch、critical、sleep）
 - 点击桌宠显示/隐藏额度，悬停有轻微姿态反馈
-- 右键菜单与系统托盘：刷新、额度显隐、置顶、锁定、透明度、刷新间隔、开机启动、日志、关于、退出
+- 独立 Skin Pack：手动/随机换肤、热扫描、缺帧 fallback、无重复随机
+- 自动换肤：每 6/12/24/48 小时，或每天本地固定时间；重启后继续原计时
+- 右键菜单与系统托盘：刷新、皮肤、额度显隐、置顶、锁定、透明度、刷新间隔、开机启动、日志、关于、退出
 - HKCU 用户级开机启动，不需要管理员权限
 - 60 秒默认轮询、事件触发刷新、失败退避、自动恢复、进程退出清理
 - JSON 配置与 rotating log；不保存或记录 token、Cookie、密码
@@ -80,7 +82,70 @@ py -3.12 -m venv .venv
 %LOCALAPPDATA%\CodexUsagePet\logs\app.log
 ```
 
-日志单文件最大约 1 MB，保留 3 个备份。配置只包含窗口位置、透明度、刷新间隔、置顶、锁定、额度显隐与开机启动偏好。
+日志单文件最大约 1 MB，保留 3 个备份。配置只包含窗口位置、透明度、刷新间隔、置顶、锁定、额度显隐、皮肤计时与开机启动偏好。
+
+## Skin Pack
+
+程序按顺序扫描：
+
+1. 随发行包提供的内置 `skins/`；
+2. portable 模式下 EXE 同级的 `skins/`；
+3. `%LOCALAPPDATA%\CodexUsagePet\skins` 用户目录。
+
+同 ID 的后扫描皮肤会覆盖前者，因此可以在用户目录修订内置皮肤而不改安装文件。右键选择“皮肤 → 打开皮肤目录”，把一个完整皮肤文件夹复制进去，再选择“重新扫描皮肤”即可热加载。坏 JSON、越界路径或缺少 idle 的包会被跳过并写入日志，不影响桌宠运行。
+
+每套皮肤至少包含 `skin.json` 和 idle 图片。当前 schema 同时支持单独 PNG 和网格 sprite sheet：
+
+```json
+{
+  "id": "my_skin",
+  "name": "My Skin",
+  "author": "Your Name",
+  "version": "1.0",
+  "preview": "preview.png",
+  "preferred_width": 220,
+  "preferred_height": 220,
+  "anchor_x": 0,
+  "anchor_y": -3,
+  "theme": {
+    "panel": "#24222B",
+    "progress_track": "#35313A",
+    "primary": "#C05A78",
+    "highlight": "#DA7892",
+    "critical": "#87364E",
+    "empty": "#958594",
+    "low": "#E8C3CD",
+    "text_primary": "#F3ECEE",
+    "text_secondary": "#BDAFB5",
+    "border": "#87364E",
+    "decorator": "✿"
+  },
+  "states": {
+    "idle": "idle.png",
+    "walk": "walk.png",
+    "critical": {
+      "file": "sheet.png",
+      "grid": [3, 2],
+      "cell": [1, 1],
+      "offset_x": -10,
+      "offset_y": 0
+    }
+  }
+}
+```
+
+`preferred_width` / `preferred_height` 控制角色绘制尺寸；`anchor_x` / `anchor_y` 和状态级 offset 用于对齐脚底及不同姿态的视觉重心。缺少 walk、sit、stretch 或 sleep 时回退 idle；critical 优先回退 sit，再回退 idle。
+
+内置皮肤：
+
+- `rita_umbral_rose`：默认玫瑰主题与完整六状态素材。
+- `rita_moonlit_rose`：独立打包的冷紫主题示例，演示整套气泡、进度条、菜单与装饰元素切换；当前复用同一套原创角色画面。
+
+### 自动换肤计时
+
+“每 24 小时”等间隔模式以 `last_skin_change` 的 UTC 时间为基准，而不是以程序启动时间为基准。关机或休眠超过间隔后，下次启动只立即随机一次，然后以当前时间开始下一周期，不会补换多次。
+
+“每天固定时间”按当前 Windows 本地时区判断最近一个时间边界，支持 00:00、08:00、12:00、18:00 和自定义 `HH:MM`。随机候选在存在多套皮肤时排除当前皮肤；只有一套时保持原样且不会报错。
 
 开机启动写入当前用户的：
 
@@ -98,7 +163,7 @@ $env:QT_QPA_PLATFORM = "offscreen"
 .\.venv\Scripts\python.exe main.py --smoke-test
 ```
 
-测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置损坏、配置不存在、日志凭据脱敏、开机启动和窗口核心属性。
+测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置损坏、日志凭据脱敏、开机启动、Skin Pack 扫描与 fallback、手动/随机/定时换肤、重启续时、固定时间、热加载、状态保持和窗口核心属性。
 
 ## 打包
 
@@ -159,16 +224,9 @@ App Server 对不同账户可能返回不同字段。缺失值按“不可用”
 
 点击窗口关闭只隐藏到托盘；使用右键菜单“退出”才会停止 App Server 子进程并退出。
 
-### 如何替换宠物图片
+### 如何增加新角色
 
-角色资源位于 `assets/rita/rita_sprite_sheet.png`，布局固定为 3×2：
-
-```text
-idle | walk | sit
-stretch | critical | sleep
-```
-
-每格尺寸相同、背景必须使用真实透明 alpha。保持这个布局即可替换角色，不需要修改额度或状态机代码。颜色、字体和菜单样式集中在 `src/codex_usage_pet/ui/theme.py`。
+复制一份 `skins/rita_umbral_rose/`，修改目录名、`skin.json` 的唯一 ID、素材和主题即可。状态图片应使用真实透明 alpha；不要求固定网格，也可以让每个状态指向单独 PNG。完成后右键“重新扫描皮肤”，无需重启或重新打包。
 
 ## 项目结构
 
@@ -177,8 +235,10 @@ src/codex_usage_pet/
   app.py
   codex/        # App Server 客户端、额度模型和解析
   pet/          # 状态机
+  skins/        # Skin Pack 扫描、schema 与自动换肤
   services/     # 刷新、配置、日志、启动项
   ui/           # 桌宠、额度气泡、托盘
+skins/          # 可独立分发的内置皮肤包
 tests/
 packaging/
 assets/

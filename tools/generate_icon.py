@@ -46,7 +46,12 @@ def main() -> int:
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
     app = QGuiApplication.instance() or QGuiApplication([])
-    source = Path(__file__).resolve().parents[1] / "assets" / "rita" / "rita_sprite_sheet.png"
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "skins"
+        / "rita_umbral_rose"
+        / "rita_sprite_sheet.png"
+    )
     write_ico(args.output, source)
     app.quit()
     return 0

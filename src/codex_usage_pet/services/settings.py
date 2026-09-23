@@ -21,6 +21,13 @@ class AppSettings:
     locked: bool = False
     show_usage: bool = True
     startup_enabled: bool = False
+    current_skin: str = "rita_umbral_rose"
+    auto_skin_enabled: bool = False
+    auto_skin_mode: str = "off"
+    auto_skin_interval_hours: int = 24
+    auto_skin_fixed_time: str = "08:00"
+    last_skin_change: str | None = None
+    random_skin_no_repeat: bool = True
 
     def normalize(self) -> "AppSettings":
         self.opacity = max(0.4, min(1.0, float(self.opacity)))
@@ -29,6 +36,21 @@ class AppSettings:
         self.locked = bool(self.locked)
         self.show_usage = bool(self.show_usage)
         self.startup_enabled = bool(self.startup_enabled)
+        self.current_skin = str(self.current_skin or "rita_umbral_rose")
+        self.auto_skin_enabled = bool(self.auto_skin_enabled)
+        if self.auto_skin_mode not in {"off", "interval", "fixed_time"}:
+            self.auto_skin_mode = "off"
+        self.auto_skin_interval_hours = max(1, min(24 * 30, int(self.auto_skin_interval_hours)))
+        try:
+            hours, minutes = (int(part) for part in self.auto_skin_fixed_time.split(":"))
+            if not (0 <= hours <= 23 and 0 <= minutes <= 59):
+                raise ValueError
+            self.auto_skin_fixed_time = f"{hours:02d}:{minutes:02d}"
+        except (AttributeError, TypeError, ValueError):
+            self.auto_skin_fixed_time = "08:00"
+        if self.last_skin_change is not None and not isinstance(self.last_skin_change, str):
+            self.last_skin_change = None
+        self.random_skin_no_repeat = bool(self.random_skin_no_repeat)
         if not isinstance(self.window_x, int):
             self.window_x = None
         if not isinstance(self.window_y, int):

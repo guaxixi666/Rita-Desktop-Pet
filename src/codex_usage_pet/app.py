@@ -11,6 +11,7 @@ from codex_usage_pet.services.logger import configure_logging
 from codex_usage_pet.services.settings import SettingsStore
 from codex_usage_pet.services.startup import StartupManager
 from codex_usage_pet.services.usage_service import UsageService
+from codex_usage_pet.skins.manager import SkinManager
 from codex_usage_pet.ui.pet_window import PetWindow
 from codex_usage_pet.ui.tray import TrayIcon, make_app_icon
 
@@ -29,20 +30,23 @@ def main(argv: list[str] | None = None) -> int:
     app = QApplication(sys.argv[:1])
     app.setApplicationName("Codex Usage Pet")
     app.setApplicationVersion("0.1.0")
-    app.setWindowIcon(make_app_icon())
     app.setQuitOnLastWindowClosed(False)
 
     store = SettingsStore()
     settings = store.load()
     startup = StartupManager()
-    window = PetWindow(settings, store, startup)
+    skin_manager = SkinManager(settings, store)
+    app.setWindowIcon(make_app_icon(skin_manager.current))
+    window = PetWindow(settings, store, startup, skin_manager)
     service = UsageService(settings.refresh_interval)
-    tray = TrayIcon(window.build_menu, window.toggle_visible)
+    tray = TrayIcon(window.build_menu, window.toggle_visible, window.current_skin)
 
     service.usage_updated.connect(window.set_snapshot)
     service.read_failed.connect(window.set_error)
     window.refresh_requested.connect(service.refresh_now)
     window.interval_changed.connect(service.set_interval)
+    window.menu_changed.connect(tray.refresh_menu)
+    window.skin_changed.connect(tray.set_skin)
 
     stopping = False
 
