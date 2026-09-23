@@ -13,6 +13,12 @@ idle | walk | sit
 stretch | critical | sleep
 ```
 
-The frame mapping, theme, size, anchors, and per-pose optical offsets are all
-declared in `skin.json`. A replacement Skin Pack can use individual PNG files
-or a grid-based sprite sheet without changing application code.
+The frame mapping, theme, size, anchors, per-pose optical offsets, and optional
+`frame_durations_ms` timing are declared in `skin.json`. The runtime `stretch`
+slot intentionally uses the subtler `animations/tidy_hair.png`; LOW enters the
+real seated pose through `animations/sit_transition.png`. Contact sheets,
+motion previews, and alpha/anchor validation are under
+`artifacts/animations/rita_umbral_rose/`.
+
+A replacement Skin Pack can use individual PNG files or a grid-based sprite
+sheet without changing application code.

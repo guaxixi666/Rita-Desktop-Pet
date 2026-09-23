@@ -4,11 +4,11 @@ Updated: 2026-09-23
 
 ## Current phase
 
-**Release Candidate 0.1.0** — phases 1–12, Rita UI art pass, extensible Skin Pack system, interaction/layout stabilization, and the natural-animation pass are complete.
+**Release Candidate 0.1.0** — phases 1–12, Rita UI art pass, extensible Skin Pack system, interaction/layout stabilization, and the hatch-pet animation upgrade are complete.
 
 ## Final acceptance
 
-- Automated tests: **105 passed** with both Qt offscreen and the native Windows Qt platform.
+- Automated tests: **111 passed** with Qt offscreen; the release build repeats the full suite before packaging.
 - Frozen EXE smoke test: exit code 0; completed a real App Server read; no new App Server process remained after exit.
 - Portable test: extracted into a new `%TEMP%` directory outside the source tree, completed a real App Server read, exited 0, and left no child process behind.
 - Live Codex App Server read: account type `chatgpt`, plan `plus`, Codex bucket, 5-hour and weekly windows, credits, and reset-credit count were returned.
@@ -72,6 +72,17 @@ Updated: 2026-09-23
 - Each animation uses its whole-sequence alpha union for window sizing. Native contact-sheet rendering and tests confirmed constant geometry and a fixed bottom-center screen anchor for every frame; the usage bubble also remains fixed during Click.
 - Visual QA contact sheets are in `artifacts/animations/`: Blink, Hover, Click, Wave, Stretch, Sleep React, plus the idle/sit/critical/sleep state poses. Generated candidates with only whole-image motion were not used.
 - Final rebuilt EXE and freshly extracted portable ZIP both exited 0, read the real App Server (`5h used=58%`, `weekly used=60%` at 2026-09-23 17:21 +08:00), included both skins' animation assets and all license files, and left zero new App Server processes.
+
+## Hatch-pet animation upgrade
+
+- Used the installed `hatch-pet` workflow for identity locking, action planning, deterministic grid normalization, contact sheets, timed motion previews, alpha hygiene, and anchor QA. `imagegen` produced new original 12-frame Tidy Hair and 10-frame Sit Transition sheets for both Rita palettes.
+- Retired the awkward raised-arms Stretch artwork. The existing `stretch` state now maps to the restrained Tidy Hair action so RECOVERED behavior remains compatible without changing the Skin Pack core.
+- Added per-frame `frame_durations_ms`; explicit frame timing takes priority over FPS and supports preparation, hold, and recovery beats. Blink is 600 ms, Hover 1100 ms, Click 1500 ms, Wave 2400 ms, Tidy Hair 2920 ms, Sleep React 2400 ms, and Sit Transition 1600 ms.
+- LOW now plays Sit Transition once and settles on its exact final seated frame. Random NORMAL actions wait 45–150 seconds, then enforce 15–30 seconds of idle after a completed action. CRITICAL and EMPTY remain protected from random actions.
+- QA validation covers frame count, duration count, non-empty frames, transparent RGB residue, safe edges, and bottom-anchor drift. Both skins pass with 0 px bottom drift and zero transparent-pixel RGB residue. Reports and previews live under `artifacts/animations/`.
+- Visual QA rejected the first equal-row extraction of Sit Transition because it produced cross-cell fragments; adaptive alpha-seam extraction fixed the grid before acceptance.
+- Final character captures are in `artifacts/screenshots/`: idle, hover, click, sit, critical, sleep, and bubble-open. The character anchor remained unchanged (`delta=(0, 0)`) while the bubble was toggled.
+- Final frozen EXE and a portable ZIP freshly extracted outside the source tree both passed `--smoke-test` with exit code 0. The portable copy included the project license, third-party notices, and Qt/GPL/LGPL license files.
 
 ## Release artifacts
 

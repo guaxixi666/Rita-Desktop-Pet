@@ -9,6 +9,7 @@ class PetActivity(str, Enum):
     IDLE = "idle"
     WALK = "walk"
     SIT = "sit"
+    SIT_TRANSITION = "sit_transition"
     STRETCH = "stretch"
     CRITICAL = "critical"
     SLEEP = "sleep"

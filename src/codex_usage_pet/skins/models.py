@@ -34,6 +34,7 @@ class SkinStateAsset:
     offset_y: float = 0.0
     frames: tuple[tuple[int, int], ...] = ()
     fps: float = 0.0
+    frame_durations_ms: tuple[int, ...] = ()
     loop: bool = False
     cooldown_ms: int = 0
     interruptible: bool = True
@@ -45,9 +46,19 @@ class SkinStateAsset:
 
     @property
     def duration_ms(self) -> int:
+        if self.frame_durations_ms:
+            return sum(self.frame_durations_ms)
         if self.frame_count <= 1 or self.fps <= 0:
             return 0
         return round(self.frame_count * 1000 / self.fps)
+
+    def frame_duration_ms(self, index: int) -> int:
+        """Return this frame's display time; explicit timing outranks FPS."""
+        if self.frame_durations_ms:
+            return self.frame_durations_ms[index % len(self.frame_durations_ms)]
+        if self.fps > 0:
+            return max(33, round(1000 / self.fps))
+        return 0
 
     def cell_at(self, index: int) -> tuple[int, int]:
         if self.frames:

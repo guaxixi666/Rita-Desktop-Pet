@@ -387,12 +387,13 @@ class PetWindow(QWidget):
         if event.type() == QEvent.Type.ContextMenu:
             self.build_menu().exec(QCursor.pos())
             return True
-        if watched not in (self, self.pet):
+        pet = getattr(self, "pet", None)
+        if watched not in (self, pet):
             return super().eventFilter(watched, event)
         if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
             self._press_global = event.globalPosition().toPoint()
             if self.settings.locked:
-                return watched is self.pet or super().eventFilter(watched, event)
+                return watched is pet or super().eventFilter(watched, event)
             self._drag_offset = event.globalPosition().toPoint() - self.pos()
             return True
         if event.type() == QEvent.Type.MouseMove and self._drag_offset and event.buttons() & Qt.MouseButton.LeftButton:
@@ -402,7 +403,7 @@ class PetWindow(QWidget):
         if event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
             release_position = event.globalPosition().toPoint()
             clicked = (
-                watched is self.pet
+                watched is pet
                 and self._press_global is not None
                 and (release_position - self._press_global).manhattanLength() <= 5
             )

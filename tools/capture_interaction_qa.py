@@ -11,6 +11,7 @@ from PySide6.QtCore import QPoint, QRect, QTimer
 from PySide6.QtWidgets import QApplication
 
 from codex_usage_pet.codex.models import UsageSnapshot, UsageWindow
+from codex_usage_pet.pet.states import PetState
 from codex_usage_pet.services.settings import AppSettings, SettingsStore
 from codex_usage_pet.services.startup import StartupManager
 from codex_usage_pet.ui.pet_window import PetWindow
@@ -19,7 +20,7 @@ from codex_usage_pet.ui.pet_window import PetWindow
 def main() -> int:
     app = QApplication.instance() or QApplication([])
     project_root = Path(__file__).resolve().parents[1]
-    output = project_root / "artifacts" / "ui"
+    output = project_root / "artifacts" / "screenshots"
     output.mkdir(parents=True, exist_ok=True)
     settings_path = Path(tempfile.gettempdir()) / "codex-usage-pet-interaction-qa.json"
     window = PetWindow(
@@ -79,6 +80,22 @@ def main() -> int:
         screen.grabWindow(0, region.x(), region.y(), region.width(), region.height()).save(
             str(output / "bubble-open.png")
         )
+        window.pet.set_state(PetState.LOW)
+        QTimer.singleShot(120, capture_sit)
+
+    def capture_sit() -> None:
+        window.pet._finish_action()
+        save_pet("pet-sit.png")
+        window.pet.set_state(PetState.CRITICAL)
+        QTimer.singleShot(120, capture_critical)
+
+    def capture_critical() -> None:
+        save_pet("pet-critical.png")
+        window.pet.set_state(PetState.EMPTY)
+        QTimer.singleShot(120, capture_sleep)
+
+    def capture_sleep() -> None:
+        save_pet("pet-sleep.png")
         window.set_usage_visible(False)
         QTimer.singleShot(260, capture_closed)
 

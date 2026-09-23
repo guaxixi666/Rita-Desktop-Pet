@@ -14,7 +14,7 @@ from codex_usage_pet.pet.animator import PetActivity
 from codex_usage_pet.pet.states import PetState
 from codex_usage_pet.services.settings import AppSettings, SettingsStore
 from codex_usage_pet.services.startup import StartupManager
-from codex_usage_pet.skins.loader import SkinRepository, load_skin
+from codex_usage_pet.skins.loader import InvalidSkinError, SkinRepository, load_skin
 from codex_usage_pet.skins.manager import SkinManager
 from codex_usage_pet.ui.pet_window import PetWindow
 
@@ -78,6 +78,38 @@ def test_missing_animations_fallback_without_crashing(tmp_path: Path, caplog) ->
     assert pack.asset_for(PetActivity.WALK).fallback_from is PetActivity.IDLE
     assert pack.asset_for(PetActivity.CRITICAL).fallback_from is PetActivity.SIT
     assert "Skin fallback" in caplog.text
+
+
+def test_frame_durations_parse_without_fps(tmp_path: Path) -> None:
+    states = {
+        "idle": "idle.png",
+        "blink": {
+            "source": "idle.png",
+            "grid": [2, 1],
+            "frames": 2,
+            "frame_durations_ms": [80, 220],
+        },
+    }
+    directory = _write_skin(tmp_path, "timed", states=states)
+    asset = load_skin(directory / "skin.json").asset_for(PetActivity.BLINK)
+    assert asset.fps == 0
+    assert asset.frame_durations_ms == (80, 220)
+    assert asset.duration_ms == 300
+
+
+def test_frame_duration_count_must_match_frames(tmp_path: Path) -> None:
+    states = {
+        "idle": "idle.png",
+        "blink": {
+            "source": "idle.png",
+            "grid": [2, 1],
+            "frames": 2,
+            "frame_durations_ms": [80],
+        },
+    }
+    directory = _write_skin(tmp_path, "bad_timing", states=states)
+    with pytest.raises(InvalidSkinError, match="must match frame count"):
+        load_skin(directory / "skin.json")
 
 
 def test_invalid_skin_is_skipped(tmp_path: Path, caplog) -> None:

@@ -19,6 +19,7 @@ _COLOR_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
 _FALLBACKS = {
     PetActivity.WALK: (PetActivity.IDLE,),
     PetActivity.SIT: (PetActivity.IDLE,),
+    PetActivity.SIT_TRANSITION: (PetActivity.SIT, PetActivity.IDLE),
     PetActivity.STRETCH: (PetActivity.IDLE,),
     PetActivity.CRITICAL: (PetActivity.SIT, PetActivity.IDLE),
     PetActivity.SLEEP: (PetActivity.IDLE,),
@@ -125,6 +126,7 @@ def load_skin(manifest: Path) -> SkinPack:
                     offset_y=source.offset_y,
                     frames=source.frames,
                     fps=source.fps,
+                    frame_durations_ms=source.frame_durations_ms,
                     loop=source.loop,
                     cooldown_ms=source.cooldown_ms,
                     interruptible=source.interruptible,
@@ -193,8 +195,21 @@ def _parse_state(root: Path, activity: PetActivity, value: Any) -> SkinStateAsse
         if any(frame[1] >= grid[1] for frame in frames):
             raise InvalidSkinError(f"animation frame outside grid for {activity.value}")
     fps = _bounded_float(data.get("fps"), 0.0, 0.0, 30.0)
-    if frames and len(frames) > 1 and fps <= 0:
-        raise InvalidSkinError(f"animated state requires fps for {activity.value}")
+    durations_raw = data.get("frame_durations_ms")
+    frame_durations_ms: tuple[int, ...] = ()
+    if durations_raw is not None:
+        if not isinstance(durations_raw, list) or len(durations_raw) != (len(frames) or 1):
+            raise InvalidSkinError(
+                f"frame_durations_ms must match frame count for {activity.value}"
+            )
+        try:
+            frame_durations_ms = tuple(int(value) for value in durations_raw)
+        except (TypeError, ValueError) as exc:
+            raise InvalidSkinError(f"invalid frame duration for {activity.value}") from exc
+        if any(value < 33 or value > 10_000 for value in frame_durations_ms):
+            raise InvalidSkinError(f"frame duration outside range for {activity.value}")
+    if frames and len(frames) > 1 and fps <= 0 and not frame_durations_ms:
+        raise InvalidSkinError(f"animated state requires fps or frame durations for {activity.value}")
     return SkinStateAsset(
         activity=activity,
         path=path,
@@ -204,6 +219,7 @@ def _parse_state(root: Path, activity: PetActivity, value: Any) -> SkinStateAsse
         offset_y=_bounded_float(data.get("offset_y"), 0.0, -160.0, 160.0),
         frames=frames,
         fps=fps,
+        frame_durations_ms=frame_durations_ms,
         loop=bool(data.get("loop", False)),
         cooldown_ms=_bounded_int(data.get("cooldown"), 0, 0, 600_000),
         interruptible=bool(data.get("interruptible", True)),

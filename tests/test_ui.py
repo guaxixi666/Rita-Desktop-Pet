@@ -115,6 +115,10 @@ def test_quota_states_drive_expected_pet_pose(
         )
     )
     assert window.pet.state is expected_state
+    if expected_state is PetState.LOW:
+        assert window.pet.activity is PetActivity.SIT_TRANSITION
+        for _ in range(window.pet.skin.asset_for(PetActivity.SIT_TRANSITION).frame_count):
+            window.pet._advance_frame()
     assert window.pet.activity is expected_activity
     window.deleteLater()
 

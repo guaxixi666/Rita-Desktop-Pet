@@ -177,6 +177,10 @@ def test_quota_states_are_not_overridden_by_idle_actions(
     window = _window(tmp_path)
     window.pet.set_state(state)
     window.pet._run_idle_action()
+    if state is PetState.LOW:
+        assert window.pet.activity is PetActivity.SIT_TRANSITION
+        for _ in range(window.pet.skin.asset_for(PetActivity.SIT_TRANSITION).frame_count):
+            window.pet._advance_frame()
     assert window.pet.activity is activity
     assert window.pet._action_activity is None
     window.deleteLater()
@@ -195,7 +199,7 @@ def test_random_idle_timer_interval_is_in_requested_range(app, tmp_path: Path) -
     window = _window(tmp_path)
     for _ in range(20):
         window.pet._schedule_idle_action()
-        assert 30_000 <= window.pet.idle_timer_interval <= 120_000
+        assert 45_000 <= window.pet.idle_timer_interval <= 150_000
     window.deleteLater()
 
 

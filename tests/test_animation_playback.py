@@ -50,7 +50,9 @@ def _finish_frames(widget: PetWidget, activity: PetActivity) -> None:
 def test_blink_frame_sequence_is_declared_and_returns_idle(app) -> None:
     widget = PetWidget(_packs()["rita_umbral_rose"])
     asset = widget.skin.asset_for(PetActivity.BLINK)
-    assert (asset.frame_count, asset.fps, asset.loop) == (6, 14.0, False)
+    assert (asset.frame_count, asset.fps, asset.loop) == (6, 20.0, False)
+    assert asset.frame_durations_ms == (150, 70, 70, 110, 70, 130)
+    assert asset.duration_ms == 600
     assert widget._start_action(PetActivity.BLINK)
     visited = []
     for _ in range(asset.frame_count - 1):
@@ -64,6 +66,7 @@ def test_blink_frame_sequence_is_declared_and_returns_idle(app) -> None:
 def test_click_animation_returns_to_low_sit(app) -> None:
     widget = PetWidget(_packs()["rita_umbral_rose"])
     widget.set_state(PetState.LOW)
+    _finish_frames(widget, PetActivity.SIT_TRANSITION)
     assert widget.play_click_reaction(now=10.0)
     _finish_frames(widget, PetActivity.CLICK)
     assert widget.activity is PetActivity.SIT
@@ -95,7 +98,8 @@ def test_random_animation_never_overrides_quota_state(app, state: PetState) -> N
     expected = widget.activity
     widget._run_idle_action()
     assert widget.activity is expected
-    assert widget._action_activity is None
+    expected_action = PetActivity.SIT_TRANSITION if state is PetState.LOW else None
+    assert widget._action_activity is expected_action
 
 
 def test_recovered_animation_returns_to_normal_after_declared_duration(app, tmp_path: Path) -> None:
@@ -121,6 +125,7 @@ def test_recovered_animation_returns_to_normal_after_declared_duration(app, tmp_
         PetActivity.WAVE,
         PetActivity.STRETCH,
         PetActivity.SLEEP_REACT,
+        PetActivity.SIT_TRANSITION,
     ],
 )
 def test_every_animation_frame_keeps_screen_anchor(app, tmp_path: Path, activity: PetActivity) -> None:
@@ -204,3 +209,42 @@ def test_continuous_hover_does_not_restart_sequence(app) -> None:
     frame = widget._frame_index
     assert not widget.play_hover_reaction(now=10.2)
     assert widget._frame_index == frame
+
+
+def test_frame_durations_override_fps_and_preserve_hold_frames(app) -> None:
+    widget = PetWidget(_packs()["rita_umbral_rose"])
+    asset = widget.skin.asset_for(PetActivity.STRETCH)
+    assert asset.fps == 24.0
+    assert asset.duration_ms == sum(asset.frame_durations_ms) == 2920
+    assert max(asset.frame_durations_ms) == 420
+    assert asset.frame_duration_ms(6) == 420
+    assert asset.frame_duration_ms(0) != round(1000 / asset.fps)
+    assert widget._start_action(PetActivity.STRETCH)
+    assert widget._frame_timer.interval() == asset.frame_durations_ms[0]
+    widget._advance_frame()
+    assert widget._frame_timer.interval() == asset.frame_durations_ms[1]
+
+
+def test_sit_transition_finishes_in_sit(app) -> None:
+    widget = PetWidget(_packs()["rita_umbral_rose"])
+    widget.set_state(PetState.LOW)
+    assert widget.activity is PetActivity.SIT_TRANSITION
+    assert widget._action_activity is PetActivity.SIT_TRANSITION
+    _finish_frames(widget, PetActivity.SIT_TRANSITION)
+    assert widget.activity is PetActivity.SIT
+    assert widget._action_activity is None
+
+
+def test_animation_totals_are_in_intended_ranges(app) -> None:
+    skin = _packs()["rita_umbral_rose"]
+    expected = {
+        PetActivity.BLINK: (500, 700),
+        PetActivity.HOVER: (900, 1300),
+        PetActivity.CLICK: (1200, 1800),
+        PetActivity.WAVE: (2000, 2800),
+        PetActivity.STRETCH: (2500, 4000),
+        PetActivity.SLEEP_REACT: (2000, 3000),
+        PetActivity.SIT_TRANSITION: (1200, 1800),
+    }
+    for activity, bounds in expected.items():
+        assert bounds[0] <= skin.asset_for(activity).duration_ms <= bounds[1]

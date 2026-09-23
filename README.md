@@ -14,7 +14,7 @@
 - 拖动、锁定位置、位置持久化、跨屏边界钳制、透明度
 - NORMAL / LOW / CRITICAL / EMPTY / RECOVERED 状态
 - Rita / Umbral Rose 统一配色、轻量悬浮额度气泡与淡入淡出
-- 默认 idle 完全静止；Hover、Click、Blink、Wave、Stretch 和 Sleep React 使用真实局部姿态逐帧动画，并以 30～120 秒随机间隔偶发 blink / wave / stretch
+- 默认 idle 完全静止；Hover、Click、Blink、Wave、Tidy Hair、Sleep React 与 Sit Transition 使用真实局部姿态逐帧动画，并以 45～150 秒随机间隔偶发 blink / wave / tidy hair
 - 人物与额度气泡是两个独立透明窗口；气泡显隐不会改变人物屏幕 anchor，并会按左右可用空间智能展开
 - 运行时按 sprite alpha 边界裁剪人物窗口，仅保留 4 px 安全边距，点击区域不再包含旧画布的大块透明区
 - 独立 Skin Pack：手动/随机换肤、热扫描、缺帧 fallback、无重复随机
@@ -127,7 +127,8 @@ py -3.12 -m venv .venv
       "source": "animations/blink.png",
       "grid": [3, 2],
       "frames": 6,
-      "fps": 14,
+      "fps": 20,
+      "frame_durations_ms": [150, 70, 70, 110, 70, 130],
       "loop": false,
       "cooldown": 1500,
       "interruptible": true
@@ -152,20 +153,21 @@ py -3.12 -m venv .venv
 }
 ```
 
-动画可使用连续帧数或显式 `frames` 坐标，并声明 `fps`、`loop`、`cooldown` 和 `interruptible`。播放器首次使用时缓存帧，切换皮肤会释放旧帧缓存；idle 没有逐帧定时器。`preferred_width` / `preferred_height` 控制角色绘制尺寸；`anchor_x` / `anchor_y` 和状态级 offset 用于对齐脚底及不同姿态的视觉重心。所有姿态共享同一个脚底中心屏幕 anchor，同组动画按全部帧的 alpha 并集固定窗口尺寸。除 idle 外的状态都是可选项；缺少互动动画时保持基础姿态，critical 仍优先回退 sit，再回退 idle。
+动画可使用连续帧数或显式 `frames` 坐标，并声明 `fps`、`frame_durations_ms`、`loop`、`cooldown` 和 `interruptible`。逐帧时长存在时优先于 FPS，可用于准备、停顿和恢复节奏。播放器首次使用时缓存帧，切换皮肤会释放旧帧缓存；idle 没有逐帧定时器。`preferred_width` / `preferred_height` 控制角色绘制尺寸；`anchor_x` / `anchor_y` 和状态级 offset 用于对齐脚底及不同姿态的视觉重心。所有姿态共享同一个脚底中心屏幕 anchor，同组动画按全部帧的 alpha 并集固定窗口尺寸。除 idle 外的状态都是可选项；缺少互动动画时保持基础姿态，critical 仍优先回退 sit，再回退 idle。
 
 内置 Rita 动画参数：
 
 | 动作 | 帧数 | FPS | 时长 | 循环 |
 | --- | ---: | ---: | ---: | --- |
-| Blink | 6 | 14 | 429 ms | 否 |
-| Hover | 6 | 10 | 600 ms | 否 |
-| Click | 8 | 10 | 800 ms | 否 |
-| Wave | 8 | 10 | 800 ms | 否 |
-| Stretch | 8 | 10 | 800 ms | 否 |
-| Sleep React | 8 | 9 | 889 ms | 否 |
+| Blink | 6 | 20 | 600 ms | 否 |
+| Hover | 6 | 24 | 1100 ms | 否 |
+| Click | 8 | 24 | 1500 ms | 否 |
+| Wave | 8 | 24 | 2400 ms | 否 |
+| Tidy Hair（兼容 `stretch` 状态） | 12 | 24 | 2920 ms | 否 |
+| Sleep React | 8 | 20 | 2400 ms | 否 |
+| Sit Transition | 10 | 24 | 1600 ms | 否 |
 
-LOW、CRITICAL 和 EMPTY 的 sit、critical、sleep 使用专门绘制的静态姿态，不通过缩放、旋转、平移或降低透明度伪造动作。点击 EMPTY 中的角色会播放 Sleep React，然后回到 sleep。
+LOW 会先播放真实的 Sit Transition 并停在它的最终坐姿；CRITICAL 和 EMPTY 使用专门绘制的疲惫与睡眠姿态，不通过缩放、旋转或整图平移伪造动作。点击 EMPTY 中的角色会播放 Sleep React，然后回到 sleep。
 
 内置皮肤：
 
@@ -194,7 +196,7 @@ $env:QT_QPA_PLATFORM = "offscreen"
 .\.venv\Scripts\python.exe main.py --smoke-test
 ```
 
-测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置损坏、日志凭据脱敏、开机启动、Skin Pack 扫描与 fallback、手动/随机/定时换肤、重启续时、固定时间、热加载、状态保持、alpha 边界裁剪、逐帧顺序、帧缓存与释放、互动 cooldown、动作优先级、每帧 anchor、气泡跟随，以及反复显隐时人物 0 像素漂移。
+测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置损坏、日志凭据脱敏、开机启动、Skin Pack 扫描与 fallback、手动/随机/定时换肤、重启续时、固定时间、热加载、状态保持、alpha 边界裁剪、逐帧顺序与时长优先级、hold frame、Sit/Sleep 回落、帧缓存与释放、互动 cooldown、动作优先级、每帧 anchor、气泡跟随，以及反复显隐时人物 0 像素漂移。
 
 ## 打包
 

@@ -52,8 +52,10 @@ class PetWidget(QWidget):
     SAFE_PADDING = 4
     HOVER_COOLDOWN_SECONDS = 1.5
     CLICK_COOLDOWN_SECONDS = 1.0
-    IDLE_INTERVAL_MIN_MS = 30_000
-    IDLE_INTERVAL_MAX_MS = 120_000
+    IDLE_INTERVAL_MIN_MS = 45_000
+    IDLE_INTERVAL_MAX_MS = 150_000
+    POST_ACTION_IDLE_MIN_MS = 15_000
+    POST_ACTION_IDLE_MAX_MS = 30_000
 
     def __init__(
         self,
@@ -155,6 +157,13 @@ class PetWidget(QWidget):
         self._frame_timer.stop()
         self._action_activity = None
         self.activity = self.behavior.set_quota_state(state)
+        if (
+            changed
+            and state is PetState.LOW
+            and self.skin.has_explicit_state(PetActivity.SIT_TRANSITION)
+        ):
+            self._action_activity = PetActivity.SIT_TRANSITION
+            self.activity = PetActivity.SIT_TRANSITION
         self._frame_index = 0
         self._prepare_visual()
         self._start_frame_timer()
@@ -242,6 +251,9 @@ class PetWidget(QWidget):
         self._prepare_visual()
         self._start_frame_timer()
         self.setToolTip(f"{self.skin.name} · {self.state.value} · {self.activity.value}")
+        self._idle_timer.start(
+            self._rng.randint(self.POST_ACTION_IDLE_MIN_MS, self.POST_ACTION_IDLE_MAX_MS)
+        )
         self.update()
 
     def _schedule_idle_action(self) -> None:
@@ -408,8 +420,9 @@ class PetWidget(QWidget):
 
     def _start_frame_timer(self) -> None:
         asset = self.skin.asset_for(self.activity)
-        if asset.frame_count > 1 and asset.fps > 0:
-            self._frame_timer.start(max(33, round(1000 / asset.fps)))
+        interval = asset.frame_duration_ms(self._frame_index)
+        if asset.frame_count > 1 and interval > 0:
+            self._frame_timer.start(interval)
 
     def _advance_frame(self) -> None:
         asset = self.skin.asset_for(self.activity)
@@ -425,6 +438,9 @@ class PetWidget(QWidget):
                 next_index = asset.frame_count - 1
         self._frame_index = next_index
         self._prepare_visual()
+        interval = asset.frame_duration_ms(self._frame_index)
+        if interval > 0:
+            self._frame_timer.start(interval)
         self.update()
 
     def paintEvent(self, _event) -> None:  # type: ignore[no-untyped-def]
