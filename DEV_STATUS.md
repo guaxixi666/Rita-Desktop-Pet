@@ -4,11 +4,11 @@ Updated: 2026-09-23
 
 ## Current phase
 
-**Release Candidate 0.1.0** — phases 1–12, Rita UI art pass, and the extensible Skin Pack system are complete.
+**Release Candidate 0.1.0** — phases 1–12, Rita UI art pass, extensible Skin Pack system, and the interaction/layout stabilization pass are complete.
 
 ## Final acceptance
 
-- Automated tests: **65 passed** with both Qt offscreen and the native Windows Qt platform.
+- Automated tests: **85 passed** with both Qt offscreen and the native Windows Qt platform.
 - Frozen EXE smoke test: exit code 0; completed a real App Server read; no new App Server process remained after exit.
 - Portable test: extracted into a new `%TEMP%` directory outside the source tree, completed a real App Server read, exited 0, and left no child process behind.
 - Live Codex App Server read: account type `chatgpt`, plan `plus`, Codex bucket, 5-hour and weekly windows, credits, and reset-credit count were returned.
@@ -41,6 +41,17 @@ Updated: 2026-09-23
 - Missing walk/sit/stretch/sleep states fall back to idle; critical falls back to sit and then idle. Invalid manifests are skipped and logged.
 - Native visual switch test changed Umbral Rose to Moonlit Rose while CRITICAL and confirmed `state=critical`, `activity=critical`, unchanged window position, and the new `#8F7EB8` theme. Evidence: `artifacts/ui/skin-rita-umbral.png` and `artifacts/ui/skin-rita-moonlit.png`.
 - Frozen and freshly extracted portable smoke tests both exited 0, performed a real App Server read, loaded both bundled manifests, and left zero new App Server processes. The final acceptance read was 5h used 4% / weekly used 52% at 2026-09-23 15:45 +08:00; values are time-sensitive.
+
+## Interaction and layout acceptance
+
+- Removed the permanent idle walk/bob/sway sequence. NORMAL now holds a static idle pose; no timer changes the pet window position.
+- Hover triggers one 520 ms blink per pointer entry with a 1.5-second cooldown. Click has higher priority, interrupts a just-started hover or autonomous action, plays one 720 ms response with a 1-second cooldown, then returns to the quota-driven pose.
+- NORMAL schedules a probabilistic blink/stretch/sit at a fresh random 30–120-second interval. LOW, CRITICAL, EMPTY, and RECOVERED keep priority and cannot be overridden by random idle actions.
+- Split the character and quota bubble into independent top-level transparent tool windows. The character keeps a persisted bottom-center screen anchor; bubble show/hide, direction changes, pose changes, and skin changes do not participate in character layout.
+- Runtime alpha bounding-box cropping uses threshold 15 and a 4 px safe margin. The default idle window changed from 232x244 (56,608 px) to 137x204 (27,948 px), a 50.63% area reduction.
+- Native capture measured the same character anchor `(1865, 1001)` and geometry `(1767, 789, 137, 204)` before and after hiding the bubble: exact delta `(0, 0)`. A ten-cycle show/hide regression test also remained drift-free.
+- Native visual QA artifacts: `artifacts/ui/pet-idle.png`, `pet-hover.png`, `pet-click.png`, `bubble-open.png`, and `bubble-closed.png`. One visual correction moved the blink eyelid from the fringe to the visible eye.
+- Final rebuilt EXE and freshly extracted portable smoke tests both exited 0, read the real App Server (`5h used=29%`, `weekly used=56%` at 2026-09-23 16:29 +08:00), loaded both bundled skins, and left zero new App Server processes. All project, third-party, Qt/GPL/LGPL license files were present in the extracted release.
 
 ## Bugs fixed during final acceptance
 

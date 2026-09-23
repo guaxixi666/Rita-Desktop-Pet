@@ -53,3 +53,7 @@ class SkinPack:
 
     def asset_for(self, activity: PetActivity) -> SkinStateAsset:
         return self.states[activity]
+
+    def has_explicit_state(self, activity: PetActivity) -> bool:
+        asset = self.states.get(activity)
+        return asset is not None and asset.fallback_from is None

@@ -11,13 +11,11 @@ def test_quota_states_force_expected_pose() -> None:
     assert controller.set_quota_state(PetState.RECOVERED) is PetActivity.STRETCH
 
 
-def test_normal_cycle_eventually_walks_and_stretches() -> None:
+def test_normal_base_pose_remains_static_idle() -> None:
     controller = PetBehaviorController()
     controller.set_quota_state(PetState.NORMAL)
     seen = {controller.advance() for _ in range(30)}
-    assert PetActivity.IDLE in seen
-    assert PetActivity.WALK in seen
-    assert PetActivity.STRETCH in seen
+    assert seen == {PetActivity.IDLE}
 
 
 def test_return_to_normal_restarts_at_idle() -> None:

@@ -22,6 +22,12 @@ _FALLBACKS = {
     PetActivity.STRETCH: (PetActivity.IDLE,),
     PetActivity.CRITICAL: (PetActivity.SIT, PetActivity.IDLE),
     PetActivity.SLEEP: (PetActivity.IDLE,),
+    PetActivity.HOVER: (PetActivity.IDLE,),
+    PetActivity.CLICK: (PetActivity.IDLE,),
+    PetActivity.BLINK: (PetActivity.IDLE,),
+    PetActivity.LOOK_LEFT: (PetActivity.IDLE,),
+    PetActivity.LOOK_RIGHT: (PetActivity.IDLE,),
+    PetActivity.WAVE: (PetActivity.IDLE,),
 }
 
 

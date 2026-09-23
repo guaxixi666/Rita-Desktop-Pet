@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
 
-from PySide6.QtCore import QEasingCurve, QEvent, QPoint, QPropertyAnimation, Qt, QTimer, Signal
+from PySide6.QtCore import QEasingCurve, QEvent, QPoint, QPropertyAnimation, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QActionGroup, QCursor, QGuiApplication
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QInputDialog, QMenu, QMessageBox, QWidget
+from PySide6.QtWidgets import QApplication, QInputDialog, QMenu, QMessageBox, QWidget
 
 from codex_usage_pet.codex.models import UsageSnapshot
 from codex_usage_pet.pet.states import PetState, PetStateTracker, state_for_remaining
@@ -28,6 +27,8 @@ class PetWindow(QWidget):
     skin_changed = Signal(object)
     menu_changed = Signal()
 
+    BUBBLE_GAP = 8
+
     def __init__(
         self,
         settings: AppSettings,
@@ -41,20 +42,21 @@ class PetWindow(QWidget):
         self.startup = startup
         self.skin_manager = skin_manager or SkinManager(settings, store)
         self.current_skin = self.skin_manager.current
+        self._anchor: QPoint | None = None
         self._drag_offset: QPoint | None = None
         self._press_global: QPoint | None = None
         self._snapshot: UsageSnapshot | None = None
         self._state_tracker = PetStateTracker()
+
         self.pet = PetWidget(self.current_skin, self)
-        self.bubble = UsageBubble(self)
+        self.pet.move(0, 0)
+        self.resize(self.pet.size())
+        self.bubble = UsageBubble()
         self.bubble.set_skin(self.current_skin)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(0)
-        layout.addWidget(self.bubble, alignment=Qt.AlignmentFlag.AlignBottom)
-        layout.addWidget(self.pet, alignment=Qt.AlignmentFlag.AlignBottom)
-        self.bubble.setVisible(settings.show_usage)
+        self.bubble.adjustSize()
+        self.pet.visual_bounds_changed.connect(self._on_pet_bounds_changed)
         self.pet.clicked.connect(self.toggle_usage_panel)
+
         self._save_timer = QTimer(self)
         self._save_timer.setSingleShot(True)
         self._save_timer.setInterval(350)
@@ -71,15 +73,29 @@ class PetWindow(QWidget):
         self._auto_skin_timer.setInterval(60_000)
         self._auto_skin_timer.timeout.connect(self.check_auto_skin)
         self._auto_skin_timer.start()
+
         self._apply_window_flags()
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        for window in (self, self.bubble):
+            window.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            window.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+            window.setWindowOpacity(settings.opacity)
         self.setWindowTitle("Codex Usage Pet")
-        self.setWindowOpacity(settings.opacity)
-        for target in (self, self.pet, self.bubble):
+        self.bubble.setWindowTitle("Codex Usage Pet · Usage")
+        for target in (self, self.pet, self.bubble, self.bubble.panel):
             target.installEventFilter(self)
         QTimer.singleShot(0, self._restore_position)
         QTimer.singleShot(0, self.check_auto_skin)
+
+    @property
+    def pet_anchor(self) -> QPoint:
+        if self._anchor is not None:
+            return QPoint(self._anchor)
+        offset = self.pet.anchor_offset
+        return self.pos() + QPoint(round(offset.x()), round(offset.y()))
+
+    @property
+    def bubble_side(self) -> str:
+        return getattr(self, "_bubble_side", "left")
 
     def set_snapshot(self, snapshot: UsageSnapshot) -> None:
         self._snapshot = snapshot
@@ -135,7 +151,6 @@ class PetWindow(QWidget):
         skin_menu.addSeparator()
         random_action = skin_menu.addAction("随机换一个")
         random_action.triggered.connect(self.random_skin)
-
         auto_menu = skin_menu.addMenu("自动换肤")
         auto_group = QActionGroup(auto_menu)
         auto_group.setExclusive(True)
@@ -156,7 +171,6 @@ class PetWindow(QWidget):
                 lambda _checked=False, value=hours: self.set_auto_skin_interval(value)
             )
             auto_group.addAction(action)
-
         fixed_menu = auto_menu.addMenu("每天固定时间")
         fixed_group = QActionGroup(fixed_menu)
         for value in ("00:00", "08:00", "12:00", "18:00"):
@@ -173,7 +187,6 @@ class PetWindow(QWidget):
             fixed_group.addAction(action)
         custom = fixed_menu.addAction("自定义时间…")
         custom.triggered.connect(self.choose_auto_skin_fixed_time)
-
         skin_menu.addSeparator()
         rescan = skin_menu.addAction("重新扫描皮肤")
         rescan.triggered.connect(self.rescan_skins)
@@ -188,7 +201,6 @@ class PetWindow(QWidget):
             action.setChecked(round(self.settings.opacity * 100) == percent)
             action.triggered.connect(lambda _checked=False, value=percent: self.set_opacity(value / 100))
             opacity_group.addAction(action)
-
         interval_menu = menu.addMenu("刷新间隔")
         interval_group = QActionGroup(interval_menu)
         for seconds, label in ((60, "1 分钟"), (120, "2 分钟"), (300, "5 分钟")):
@@ -197,7 +209,6 @@ class PetWindow(QWidget):
             action.setChecked(self.settings.refresh_interval == seconds)
             action.triggered.connect(lambda _checked=False, value=seconds: self.set_refresh_interval(value))
             interval_group.addAction(action)
-
         startup = menu.addAction("开机启动")
         startup.setCheckable(True)
         startup.setEnabled(self.startup.supported)
@@ -216,32 +227,47 @@ class PetWindow(QWidget):
     def toggle_visible(self) -> None:
         if self.isVisible():
             self.hide()
+            self.bubble.hide()
         else:
             self.show()
             self.raise_()
+            if self.settings.show_usage:
+                self._position_bubble()
+                self.bubble.show()
 
     def save_settings(self) -> None:
+        anchor = self.pet_anchor
+        self.settings.pet_anchor_x = anchor.x()
+        self.settings.pet_anchor_y = anchor.y()
         self.settings.window_x = self.x()
         self.settings.window_y = self.y()
         self.store.save(self.settings)
 
     def set_usage_visible(self, visible: bool) -> None:
+        anchor_before = self.pet_anchor
+        position_before = self.pos()
         self.settings.show_usage = visible
+        if visible:
+            self._position_bubble()
         self.bubble.set_animated_visible(visible)
-        QTimer.singleShot(220, self._finish_panel_animation)
+        self._anchor = anchor_before
+        if self.pos() != position_before:
+            self.move(position_before)
         self.save_settings()
 
     def toggle_usage_panel(self) -> None:
         self.set_usage_visible(not self.settings.show_usage)
 
-    def _finish_panel_animation(self) -> None:
-        self.adjustSize()
-        self._clamp_to_screen()
-
     def set_always_on_top(self, enabled: bool) -> None:
         self.settings.always_on_top = enabled
+        pet_visible = self.isVisible()
+        bubble_visible = self.bubble.isVisible()
         self._apply_window_flags()
-        self.show()
+        if pet_visible:
+            self.show()
+        if bubble_visible:
+            self.bubble.show()
+        self._move_to_anchor(self.pet_anchor)
         self.save_settings()
 
     def set_locked(self, enabled: bool) -> None:
@@ -251,6 +277,7 @@ class PetWindow(QWidget):
     def set_opacity(self, opacity: float) -> None:
         self.settings.opacity = opacity
         self.setWindowOpacity(opacity)
+        self.bubble.setWindowOpacity(opacity)
         self.save_settings()
 
     def set_refresh_interval(self, seconds: int) -> None:
@@ -307,10 +334,7 @@ class PetWindow(QWidget):
             QMessageBox.warning(self, "Codex Usage Pet", "时间格式应为 HH:MM，例如 08:30。")
 
     def rescan_skins(self) -> None:
-        pack = self.skin_manager.rescan()
-        # Reload even when the ID is unchanged: users may have replaced the
-        # current pack's images or theme in place before choosing rescan.
-        self._queue_skin_swap(pack)
+        self._queue_skin_swap(self.skin_manager.rescan())
         self.menu_changed.emit()
 
     def open_skin_directory(self) -> None:
@@ -324,11 +348,11 @@ class PetWindow(QWidget):
         if pack is None:
             return
         self._pending_skin = None
-        old_position = self.pos()
+        anchor = self.pet_anchor
         self.current_skin = pack
         self.pet.apply_skin(pack)
         self.bubble.set_skin(pack)
-        self.move(old_position)
+        self._move_to_anchor(anchor)
         self.pet._opacity_effect.setOpacity(0.0)
         self._skin_fade_in.setStartValue(0.0)
         self._skin_fade_in.setEndValue(1.0)
@@ -355,7 +379,7 @@ class PetWindow(QWidget):
         QMessageBox.about(
             self,
             "关于 Codex Usage Pet",
-            "Codex Usage Pet 0.1.0\n\n支持独立 Skin Pack、手动与定时自动换肤。\n"
+            "Codex Usage Pet 0.1.0\n\n独立人物窗口与 Skin Pack 交互动画。\n"
             "额度来自本机官方 Codex App Server。\n不读取浏览器 Cookie，不保存认证凭据。",
         )
 
@@ -363,14 +387,17 @@ class PetWindow(QWidget):
         if event.type() == QEvent.Type.ContextMenu:
             self.build_menu().exec(QCursor.pos())
             return True
+        if watched not in (self, self.pet):
+            return super().eventFilter(watched, event)
         if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
             self._press_global = event.globalPosition().toPoint()
             if self.settings.locked:
                 return watched is self.pet or super().eventFilter(watched, event)
-            self._drag_offset = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            self._drag_offset = event.globalPosition().toPoint() - self.pos()
             return True
         if event.type() == QEvent.Type.MouseMove and self._drag_offset and event.buttons() & Qt.MouseButton.LeftButton:
-            self.move(self._bounded_position(event.globalPosition().toPoint() - self._drag_offset))
+            desired = event.globalPosition().toPoint() - self._drag_offset
+            self._move_to_anchor(self._anchor_for_top_left(desired))
             return True
         if event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
             release_position = event.globalPosition().toPoint()
@@ -382,47 +409,111 @@ class PetWindow(QWidget):
             self._drag_offset = None
             self._press_global = None
             if clicked:
+                self.pet.play_click_reaction()
                 self.pet.clicked.emit()
             if not self.settings.locked:
                 self._save_timer.start()
-            if watched is self.pet or not self.settings.locked:
-                return True
+            return True
         return super().eventFilter(watched, event)
 
     def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
         event.ignore()
         self.hide()
+        self.bubble.hide()
 
     def _apply_window_flags(self) -> None:
-        flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
+        flags = (
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.Tool
+            | Qt.WindowType.WindowDoesNotAcceptFocus
+        )
         if self.settings.always_on_top:
             flags |= Qt.WindowType.WindowStaysOnTopHint
         self.setWindowFlags(flags)
+        self.bubble.setWindowFlags(flags)
 
     def _restore_position(self) -> None:
-        self.adjustSize()
-        if self.settings.window_x is None or self.settings.window_y is None:
-            screen = QGuiApplication.primaryScreen()
-            if screen:
-                area = screen.availableGeometry()
-                self.move(area.right() - self.width() - 30, area.bottom() - self.height() - 30)
+        self.resize(self.pet.size())
+        if self.settings.pet_anchor_x is not None and self.settings.pet_anchor_y is not None:
+            anchor = QPoint(self.settings.pet_anchor_x, self.settings.pet_anchor_y)
+        elif self.settings.window_x is not None and self.settings.window_y is not None:
+            legacy_pet_left = self.settings.window_x + (226 if self.settings.show_usage else 8)
+            anchor = QPoint(legacy_pet_left + 116, self.settings.window_y + 252)
         else:
-            self.move(self.settings.window_x, self.settings.window_y)
-        self._clamp_to_screen()
+            screen = QGuiApplication.primaryScreen()
+            if not screen:
+                anchor = QPoint(0, 0)
+            else:
+                area = screen.availableGeometry()
+                anchor = QPoint(area.right() - 30, area.bottom() - 30)
+        self._move_to_anchor(anchor)
+        if self.settings.show_usage:
+            self._position_bubble()
+            self.bubble.show()
+        else:
+            self.bubble.hide()
+        self.save_settings()
+
+    def _on_pet_bounds_changed(self) -> None:
+        anchor = self.pet_anchor if self._anchor is not None else None
+        self.resize(self.pet.size())
+        self.pet.move(0, 0)
+        if anchor is not None:
+            self._move_to_anchor(anchor)
+
+    def _anchor_for_top_left(self, top_left: QPoint) -> QPoint:
+        offset = self.pet.anchor_offset
+        return top_left + QPoint(round(offset.x()), round(offset.y()))
+
+    def _top_left_for_anchor(self, anchor: QPoint) -> QPoint:
+        offset = self.pet.anchor_offset
+        return anchor - QPoint(round(offset.x()), round(offset.y()))
+
+    def _move_to_anchor(self, anchor: QPoint) -> None:
+        bounded = self._bounded_anchor(anchor)
+        self._anchor = QPoint(bounded)
+        self.move(self._top_left_for_anchor(bounded))
+        self._position_bubble()
+
+    def _bounded_anchor(self, anchor: QPoint) -> QPoint:
+        top_left = self._top_left_for_anchor(anchor)
+        screen = QGuiApplication.screenAt(anchor) or QGuiApplication.primaryScreen()
+        if not screen:
+            return anchor
+        area = screen.availableGeometry()
+        bounded_top_left = QPoint(
+            max(area.left(), min(top_left.x(), area.right() - self.width() + 1)),
+            max(area.top(), min(top_left.y(), area.bottom() - self.height() + 1)),
+        )
+        return self._anchor_for_top_left(bounded_top_left)
 
     def _bounded_position(self, point: QPoint) -> QPoint:
-        screen = QGuiApplication.screenAt(point + QPoint(self.width() // 2, self.height() // 2))
-        screen = screen or QGuiApplication.primaryScreen()
-        if not screen:
-            return point
-        area = screen.availableGeometry()
-        return QPoint(
-            max(area.left(), min(point.x(), area.right() - self.width() + 1)),
-            max(area.top(), min(point.y(), area.bottom() - self.height() + 1)),
-        )
+        return self._top_left_for_anchor(self._bounded_anchor(self._anchor_for_top_left(point)))
 
     def _clamp_to_screen(self) -> None:
-        self.move(self._bounded_position(self.pos()))
+        self._move_to_anchor(self.pet_anchor)
+
+    def _position_bubble(self) -> None:
+        if self._anchor is None:
+            return
+        self.bubble.adjustSize()
+        screen = QGuiApplication.screenAt(self._anchor) or QGuiApplication.primaryScreen()
+        if not screen:
+            return
+        area = screen.availableGeometry()
+        pet_rect = QRect(self.pos(), self.size())
+        left_space = pet_rect.left() - area.left() - self.BUBBLE_GAP
+        right_space = area.right() - pet_rect.right() - self.BUBBLE_GAP
+        if right_space >= self.bubble.width() and (left_space < self.bubble.width() or right_space > left_space):
+            x = pet_rect.right() + 1 + self.BUBBLE_GAP
+            self._bubble_side = "right"
+        else:
+            x = pet_rect.left() - self.BUBBLE_GAP - self.bubble.width()
+            self._bubble_side = "left"
+        x = max(area.left(), min(x, area.right() - self.bubble.width() + 1))
+        y = self._anchor.y() - self.bubble.height()
+        y = max(area.top(), min(y, area.bottom() - self.bubble.height() + 1))
+        self.bubble.move(x, y)
 
     def _finish_recovered(self) -> None:
         if self._snapshot:
@@ -431,4 +522,3 @@ class PetWindow(QWidget):
             self.bubble.set_state(state)
             if state is PetState.NORMAL:
                 self.bubble.set_pet_message("")
-

@@ -62,7 +62,8 @@ def test_rita_sprite_sheet_has_transparent_cells() -> None:
 
 def test_idle_blink_frame_renders_without_paint_error(app, tmp_path: Path) -> None:
     window = make_window(tmp_path)
-    window.pet._frame = 7
+    assert window.pet.play_hover_reaction(now=10.0)
+    assert window.pet.activity is PetActivity.BLINK
     image = window.pet.grab().toImage()
     assert not image.isNull()
     window.deleteLater()

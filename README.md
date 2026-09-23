@@ -14,8 +14,9 @@
 - 拖动、锁定位置、位置持久化、跨屏边界钳制、透明度
 - NORMAL / LOW / CRITICAL / EMPTY / RECOVERED 状态
 - Rita / Umbral Rose 统一配色、轻量悬浮额度气泡与淡入淡出
-- 低频透明 sprite 动画（idle、walk、sit、stretch、critical、sleep）
-- 点击桌宠显示/隐藏额度，悬停有轻微姿态反馈
+- 默认 idle 完全静止；悬停单次眨眼、点击单次回应，并以 30～120 秒随机间隔偶发 blink / stretch / sit
+- 人物与额度气泡是两个独立透明窗口；气泡显隐不会改变人物屏幕 anchor，并会按左右可用空间智能展开
+- 运行时按 sprite alpha 边界裁剪人物窗口，仅保留 4 px 安全边距，点击区域不再包含旧画布的大块透明区
 - 独立 Skin Pack：手动/随机换肤、热扫描、缺帧 fallback、无重复随机
 - 自动换肤：每 6/12/24/48 小时，或每天本地固定时间；重启后继续原计时
 - 右键菜单与系统托盘：刷新、皮肤、额度显隐、置顶、锁定、透明度、刷新间隔、开机启动、日志、关于、退出
@@ -122,6 +123,9 @@ py -3.12 -m venv .venv
   },
   "states": {
     "idle": "idle.png",
+    "hover": "look-up.png",
+    "click": "wave.png",
+    "blink": "blink.png",
     "walk": "walk.png",
     "critical": {
       "file": "sheet.png",
@@ -134,7 +138,7 @@ py -3.12 -m venv .venv
 }
 ```
 
-`preferred_width` / `preferred_height` 控制角色绘制尺寸；`anchor_x` / `anchor_y` 和状态级 offset 用于对齐脚底及不同姿态的视觉重心。缺少 walk、sit、stretch 或 sleep 时回退 idle；critical 优先回退 sit，再回退 idle。
+`preferred_width` / `preferred_height` 控制角色绘制尺寸；`anchor_x` / `anchor_y` 和状态级 offset 用于对齐脚底及不同姿态的视觉重心。所有姿态共享同一个脚底中心屏幕 anchor，因此不同尺寸的图片不会让人物跳动。除 idle 外的状态都是可选项；缺少 hover、click、blink、look_left、look_right 或 wave 时不会伪造对应互动，其他动作按兼容规则回退 idle，critical 优先回退 sit，再回退 idle。
 
 内置皮肤：
 
@@ -163,7 +167,7 @@ $env:QT_QPA_PLATFORM = "offscreen"
 .\.venv\Scripts\python.exe main.py --smoke-test
 ```
 
-测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置损坏、日志凭据脱敏、开机启动、Skin Pack 扫描与 fallback、手动/随机/定时换肤、重启续时、固定时间、热加载、状态保持和窗口核心属性。
+测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置损坏、日志凭据脱敏、开机启动、Skin Pack 扫描与 fallback、手动/随机/定时换肤、重启续时、固定时间、热加载、状态保持、alpha 边界裁剪、互动 cooldown、动作优先级、气泡跟随，以及反复显隐时人物 0 像素漂移。
 
 ## 打包
 

@@ -12,17 +12,16 @@ class PetActivity(str, Enum):
     STRETCH = "stretch"
     CRITICAL = "critical"
     SLEEP = "sleep"
+    HOVER = "hover"
+    CLICK = "click"
+    BLINK = "blink"
+    LOOK_LEFT = "look_left"
+    LOOK_RIGHT = "look_right"
+    WAVE = "wave"
 
 
 class PetBehaviorController:
-    """Deterministic low-frequency pose scheduler driven by quota state."""
-
-    _NORMAL_SEQUENCE = (
-        (PetActivity.IDLE, 8),
-        (PetActivity.WALK, 6),
-        (PetActivity.IDLE, 6),
-        (PetActivity.STRETCH, 4),
-    )
+    """Quota-driven base pose; optional interactions are scheduled by the UI."""
 
     def __init__(self) -> None:
         self.quota_state = PetState.NORMAL
@@ -38,17 +37,7 @@ class PetBehaviorController:
         return self.activity
 
     def advance(self) -> PetActivity:
-        forced = self._forced_activity(self.quota_state)
-        if self.quota_state is not PetState.NORMAL:
-            self.activity = forced
-            return self.activity
-
-        activity, duration = self._NORMAL_SEQUENCE[self._sequence_index]
-        self.activity = activity
-        self._ticks_in_activity += 1
-        if self._ticks_in_activity >= duration:
-            self._ticks_in_activity = 0
-            self._sequence_index = (self._sequence_index + 1) % len(self._NORMAL_SEQUENCE)
+        self.activity = self._forced_activity(self.quota_state)
         return self.activity
 
     @staticmethod

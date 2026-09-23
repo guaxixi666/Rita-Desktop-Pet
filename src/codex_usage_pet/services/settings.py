@@ -15,6 +15,8 @@ LOGGER = logging.getLogger(__name__)
 class AppSettings:
     window_x: int | None = None
     window_y: int | None = None
+    pet_anchor_x: int | None = None
+    pet_anchor_y: int | None = None
     opacity: float = 1.0
     refresh_interval: int = 60
     always_on_top: bool = True
@@ -55,6 +57,10 @@ class AppSettings:
             self.window_x = None
         if not isinstance(self.window_y, int):
             self.window_y = None
+        if not isinstance(self.pet_anchor_x, int):
+            self.pet_anchor_x = None
+        if not isinstance(self.pet_anchor_y, int):
+            self.pet_anchor_y = None
         return self
 
 
