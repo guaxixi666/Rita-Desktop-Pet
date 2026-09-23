@@ -121,6 +121,18 @@ dist\CodexUsagePet-portable.zip
 
 目标电脑仍需安装并登录 Codex CLI；应用本身不捆绑或复制 Codex 凭据。当前构建未进行代码签名，因此首次运行可能出现 Windows SmartScreen 提示。
 
+### 可选安装器
+
+安装 Inno Setup 6 后运行：
+
+```powershell
+.\build-installer.ps1
+```
+
+预期输出为 `dist\CodexUsagePet-Setup-0.1.0.exe`。安装器使用当前用户目录和 HKCU，
+不要求管理员权限；桌面快捷方式和开机启动均为可选项。当前开发机没有安装
+Inno Setup，因此安装器定义已提供，但安装器二进制尚未在本机编译验证。
+
 ## 常见问题
 
 ### 显示“暂时无法读取额度”

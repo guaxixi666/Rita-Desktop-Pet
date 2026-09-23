@@ -20,6 +20,8 @@ Phases 1–12 complete for the MVP.
 - Added open-source research and attribution documents.
 - Added deterministic idle/walk/sit/stretch/critical/sleep behavior scheduling,
   an original application icon, runtime licensing notes, and a portable ZIP.
+- Added a per-user Inno Setup definition and build entry point; compilation is
+  pending because Inno Setup is not installed on this machine.
 
 ## Test status
 
@@ -39,7 +41,9 @@ Phases 1–12 complete for the MVP.
 - The build is unsigned and may trigger SmartScreen.
 - The machine has Python 3.13; Python 3.11/3.12 remains the recommended release build target even though tests pass on 3.13.
 - App Server fields may vary by Codex version/account; absent values are shown as unavailable rather than guessed.
-- No installer or automatic updater is included in the MVP.
+- The installer definition is present, but its binary is not built or verified
+  on this machine because Inno Setup 6 is unavailable.
+- No automatic updater is included in the MVP.
 - Live Windows visual automation could not run on 2026-09-23 because the
   computer-use helper returned no app inventory; offscreen pose rendering and
   frozen smoke tests still passed.
