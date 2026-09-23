@@ -25,7 +25,7 @@ Phases 1–12 complete for the MVP.
 
 ## Test status
 
-- `pytest`: 28 passed on Python 3.13.13 / Windows.
+- `pytest`: 31 passed on Python 3.13.13 / Windows.
 - Offscreen Qt application smoke test: passed.
 - Live App Server read: passed (account/rate-limit values returned).
 - Frozen application smoke test: passed with exit code 0; the child process
