@@ -1,9 +1,8 @@
 # Assets
 
-The MVP draws an original pet with `QPainter`, so it has no external sprite
-dependency. Future sprite sheets can be placed here without changing the
-Codex communication layer.
+The desktop pet now uses an original transparent 3×2 sprite sheet stored under
+`assets/rita/`. See that folder's README for the frame contract and provenance.
 
-`codex_usage_pet.ico` and its PNG preview are generated from the original
-QPainter design by `tools/generate_icon.py` before each package build.
+`codex_usage_pet.ico` and its PNG preview are regenerated from the idle frame
+by `tools/generate_icon.py` before each package build.
 

@@ -8,7 +8,9 @@ a = Analysis(
     [str(project_root / "main.py")],
     pathex=[str(project_root / "src")],
     binaries=[],
-    datas=[],
+    datas=[
+        (str(project_root / "assets" / "rita" / "rita_sprite_sheet.png"), "assets/rita"),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

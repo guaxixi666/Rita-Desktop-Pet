@@ -14,6 +14,7 @@ from codex_usage_pet.services.settings import AppSettings, SettingsStore
 from codex_usage_pet.services.startup import StartupManager
 
 from .pet_widget import PetWidget
+from .theme import MENU_STYLE
 from .usage_bubble import UsageBubble
 
 
@@ -33,16 +34,18 @@ class PetWindow(QWidget):
         self.store = store
         self.startup = startup
         self._drag_offset: QPoint | None = None
+        self._press_global: QPoint | None = None
         self._snapshot: UsageSnapshot | None = None
         self._state_tracker = PetStateTracker()
         self.pet = PetWidget(self)
         self.bubble = UsageBubble(self)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(0)
         layout.addWidget(self.bubble, alignment=Qt.AlignmentFlag.AlignBottom)
         layout.addWidget(self.pet, alignment=Qt.AlignmentFlag.AlignBottom)
         self.bubble.setVisible(settings.show_usage)
+        self.pet.clicked.connect(self.toggle_usage_panel)
         self._save_timer = QTimer(self)
         self._save_timer.setSingleShot(True)
         self._save_timer.setInterval(350)
@@ -61,12 +64,13 @@ class PetWindow(QWidget):
         self.bubble.set_snapshot(snapshot)
         state = self._state_tracker.update(snapshot.remaining_percent)
         self.pet.set_state(state)
+        self.bubble.set_state(state)
         message = {
             PetState.NORMAL: "",
-            PetState.LOW: "Codex 额度不多啦",
-            PetState.CRITICAL: "Codex 快没粮了",
-            PetState.EMPTY: "额度用完啦，等恢复吧 💤",
-            PetState.RECOVERED: "额度恢复啦！",
+            PetState.LOW: "额度不多啦。",
+            PetState.CRITICAL: "额度快见底了…",
+            PetState.EMPTY: "今天先休息一下吧… Zzz",
+            PetState.RECOVERED: "额度恢复啦 ♡",
         }[state]
         self.bubble.set_pet_message(message)
         if state is PetState.RECOVERED:
@@ -77,6 +81,7 @@ class PetWindow(QWidget):
 
     def build_menu(self) -> QMenu:
         menu = QMenu()
+        menu.setStyleSheet(MENU_STYLE)
         refresh = menu.addAction("刷新额度")
         refresh.triggered.connect(self.refresh_requested.emit)
         show_usage = menu.addAction("显示额度")
@@ -139,10 +144,16 @@ class PetWindow(QWidget):
 
     def set_usage_visible(self, visible: bool) -> None:
         self.settings.show_usage = visible
-        self.bubble.setVisible(visible)
+        self.bubble.set_animated_visible(visible)
+        QTimer.singleShot(220, self._finish_panel_animation)
+        self.save_settings()
+
+    def toggle_usage_panel(self) -> None:
+        self.set_usage_visible(not self.settings.show_usage)
+
+    def _finish_panel_animation(self) -> None:
         self.adjustSize()
         self._clamp_to_screen()
-        self.save_settings()
 
     def set_always_on_top(self, enabled: bool) -> None:
         self.settings.always_on_top = enabled
@@ -182,25 +193,38 @@ class PetWindow(QWidget):
         QMessageBox.about(
             self,
             "关于 Codex Usage Pet",
-            "Codex Usage Pet 0.1.0\n\n额度来自本机官方 Codex App Server。\n不读取浏览器 Cookie，不保存认证凭据。",
+            "Codex Usage Pet 0.1.0\n\nRita 风格原创 Q 版桌宠素材。\n"
+            "额度来自本机官方 Codex App Server。\n不读取浏览器 Cookie，不保存认证凭据。",
         )
 
     def eventFilter(self, watched, event) -> bool:  # type: ignore[no-untyped-def]
         if event.type() == QEvent.Type.ContextMenu:
             self.build_menu().exec(QCursor.pos())
             return True
-        if self.settings.locked:
-            return super().eventFilter(watched, event)
         if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
+            self._press_global = event.globalPosition().toPoint()
+            if self.settings.locked:
+                return watched is self.pet or super().eventFilter(watched, event)
             self._drag_offset = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
             return True
         if event.type() == QEvent.Type.MouseMove and self._drag_offset and event.buttons() & Qt.MouseButton.LeftButton:
             self.move(self._bounded_position(event.globalPosition().toPoint() - self._drag_offset))
             return True
         if event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
+            release_position = event.globalPosition().toPoint()
+            clicked = (
+                watched is self.pet
+                and self._press_global is not None
+                and (release_position - self._press_global).manhattanLength() <= 5
+            )
             self._drag_offset = None
-            self._save_timer.start()
-            return True
+            self._press_global = None
+            if clicked:
+                self.pet.clicked.emit()
+            if not self.settings.locked:
+                self._save_timer.start()
+            if watched is self.pet or not self.settings.locked:
+                return True
         return super().eventFilter(watched, event)
 
     def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
@@ -242,6 +266,7 @@ class PetWindow(QWidget):
         if self._snapshot:
             state = state_for_remaining(self._snapshot.remaining_percent)
             self.pet.set_state(state)
+            self.bubble.set_state(state)
             if state is PetState.NORMAL:
                 self.bubble.set_pet_message("")
 

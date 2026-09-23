@@ -7,6 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QImage
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -39,7 +40,19 @@ def test_window_is_frameless_tool_topmost_and_translucent(app, tmp_path: Path) -
     assert flags & Qt.WindowType.Tool
     assert flags & Qt.WindowType.WindowStaysOnTopHint
     assert window.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    assert window.pet.sprite_loaded
     window.deleteLater()
+
+
+def test_rita_sprite_sheet_has_transparent_cells() -> None:
+    image = QImage(
+        str(Path(__file__).parents[1] / "assets" / "rita" / "rita_sprite_sheet.png")
+    )
+    assert not image.isNull()
+    assert image.hasAlphaChannel()
+    assert image.width() % 3 == 0
+    assert image.height() % 2 == 0
+    assert image.pixelColor(0, 0).alpha() == 0
 
 
 def test_snapshot_updates_bubble_and_pet_state(app, tmp_path: Path) -> None:
@@ -55,7 +68,7 @@ def test_snapshot_updates_bubble_and_pet_state(app, tmp_path: Path) -> None:
     window.set_snapshot(snapshot)
     assert window.pet.state is PetState.CRITICAL
     assert window.pet.activity is PetActivity.CRITICAL
-    assert "快没粮" in window.bubble.status.text()
+    assert "见底" in window.bubble.status.text()
     assert "5%" in window.bubble.five_hour.detail.text()
     window.deleteLater()
 
@@ -153,6 +166,7 @@ def test_menu_tray_screen_and_dpi_basics(app, tmp_path: Path) -> None:
     tray = TrayIcon(window.build_menu, window.toggle_visible)
     tray.refresh_menu()
     assert tray.icon.contextMenu() is not None
+    assert tray._menu is tray.icon.contextMenu()
     tray.hide()
     window.deleteLater()
 
@@ -173,5 +187,24 @@ def test_drag_gesture_and_position_lock(app, tmp_path: Path) -> None:
     QTest.mousePress(window.pet, Qt.MouseButton.LeftButton, pos=point)
     assert window._drag_offset is None
     QTest.mouseRelease(window.pet, Qt.MouseButton.LeftButton, pos=point)
+    window.deleteLater()
+
+
+def test_pet_click_toggles_usage_panel_with_fade(app, tmp_path: Path) -> None:
+    window = make_window(tmp_path)
+    window.show()
+    app.processEvents()
+    point = QPoint(100, 100)
+
+    QTest.mouseClick(window.pet, Qt.MouseButton.LeftButton, pos=point)
+    QTest.qWait(240)
+    assert window.settings.show_usage is False
+    assert window.bubble.isHidden()
+
+    QTest.mouseClick(window.pet, Qt.MouseButton.LeftButton, pos=point)
+    QTest.qWait(240)
+    assert window.settings.show_usage is True
+    assert window.bubble.isVisible()
+    assert window.bubble._opacity_effect.opacity() == pytest.approx(1.0)
     window.deleteLater()
 

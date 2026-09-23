@@ -19,3 +19,12 @@ including PySide6 Essentials (LGPLv3/GPLv3/commercial options), shiboken6, and
 the Qt libraries included by PyInstaller. A packaged redistribution should
 preserve the license files installed with those packages.
 
+## Character-style notice
+
+Rita Rossweisse, Umbral Rose, Honkai Impact 3rd, and related character designs
+are properties of miHoYo/HoYoverse. This independent project is not affiliated
+with or endorsed by miHoYo/HoYoverse. Its desktop-pet sprite sheet is newly
+generated fan art based on a written visual brief; it does not redistribute
+official game art, extracted textures, logos, watermarks, or third-party fan
+art.
+

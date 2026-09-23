@@ -4,11 +4,11 @@ Updated: 2026-09-23
 
 ## Current phase
 
-**Release Candidate 0.1.0** — phases 1–12 and final acceptance are complete.
+**Release Candidate 0.1.0** — phases 1–12, final acceptance, and the Rita UI art pass are complete.
 
 ## Final acceptance
 
-- Automated tests: **42 passed** with both Qt offscreen and the native Windows Qt platform.
+- Automated tests: **44 passed** with both Qt offscreen and the native Windows Qt platform.
 - Frozen EXE smoke test: exit code 0; completed a real App Server read; no new App Server process remained after exit.
 - Portable test: extracted into a new `%TEMP%` directory outside the source tree, completed a real App Server read, exited 0, and left no child process behind.
 - Live Codex App Server read: account type `chatgpt`, plan `plus`, Codex bucket, 5-hour and weekly windows, credits, and reset-credit count were returned.
@@ -22,12 +22,23 @@ Updated: 2026-09-23
 - Logs: five acceptance log files were scanned; no bearer token, Authorization header, Cookie, access/refresh/session token, or session credential pattern was present.
 - Distribution: project MIT license, third-party notices, LGPLv3 text, GPLv3 text, and runtime license README are present in both the onedir release and portable ZIP.
 
+## Rita UI art pass
+
+- Replaced the engineering placeholder pet with an original transparent 3x2 Rita-inspired chibi sprite sheet covering idle, walk, sit, stretch, critical, and sleep.
+- Rebuilt the compact usage bubble with the Umbral Rose palette, 6 px rounded progress bars, restrained rose accents, hierarchy-aware typography, and state-specific desaturation.
+- Centralized all palette and typography values in `src/codex_usage_pet/ui/theme.py`; no default Qt blue remains in the pet, bubble, tray, or menus.
+- Added hover response, blink, state fade, panel fade, click-to-toggle, recovered stretch, and per-pose optical alignment while preserving the existing low-frequency animation controller.
+- Visual QA artifacts: `artifacts/ui/rita-ui-final.png` and `artifacts/ui/rita-states-final.png`. The final composition was reviewed and adjusted once to reduce the visual gap between the bubble and narrow idle pose.
+- Final rebuilt EXE smoke test: exit 0, real App Server read (`5h used=80%`, `weekly used=48%` at 2026-09-23 12:01 +08:00), and zero newly remaining App Server processes.
+- Final portable test: freshly extracted outside the source tree, exit 0, the same real quota read, zero newly remaining App Server processes, and all release/license files present.
+
 ## Bugs fixed during final acceptance
 
 - Delayed Codex executable resolution until the refresh worker starts, so a missing CLI shows the normal unavailable state instead of crashing application construction.
 - Expanded log redaction to cover `Authorization`, `Cookie`, and session credentials.
 - Corrected 5h/weekly classification if an App Server returns the windows in reversed field order.
 - Extended frozen smoke duration so it validates a real App Server handshake and first quota read, rather than only Qt startup/shutdown.
+- Retained ownership of the tray context menu and detached it during shutdown, removing a nondeterministic Windows fast-exit crash exposed by the fresh portable smoke test.
 
 ## Release artifacts
 

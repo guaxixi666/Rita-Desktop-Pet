@@ -2,7 +2,7 @@
 
 一个轻量 Windows 桌面宠物：常驻桌面显示 Codex 5 小时与 weekly 额度，并用宠物姿态表达额度是否充足。
 
-当前版本是可运行 MVP。宠物由程序原创绘制，不依赖外部图片素材，后续可替换为 sprite sheet。
+当前版本是 Release Candidate 0.1.0。界面采用 Rita / Umbral Rose 风格的原创 Q 版透明 sprite sheet；素材与代码分离，后续可以直接替换。
 
 ## 已实现
 
@@ -13,7 +13,9 @@
 - 透明、无边框、置顶、`Qt.Tool` 窗口，不显示普通任务栏按钮
 - 拖动、锁定位置、位置持久化、跨屏边界钳制、透明度
 - NORMAL / LOW / CRITICAL / EMPTY / RECOVERED 状态
-- 低频原创 QPainter 动画（idle、walk、sit、stretch、critical、sleep）
+- Rita / Umbral Rose 统一配色、轻量悬浮额度气泡与淡入淡出
+- 低频透明 sprite 动画（idle、walk、sit、stretch、critical、sleep）
+- 点击桌宠显示/隐藏额度，悬停有轻微姿态反馈
 - 右键菜单与系统托盘：刷新、额度显隐、置顶、锁定、透明度、刷新间隔、开机启动、日志、关于、退出
 - HKCU 用户级开机启动，不需要管理员权限
 - 60 秒默认轮询、事件触发刷新、失败退避、自动恢复、进程退出清理
@@ -159,7 +161,14 @@ App Server 对不同账户可能返回不同字段。缺失值按“不可用”
 
 ### 如何替换宠物图片
 
-当前宠物在 `src/codex_usage_pet/ui/pet_widget.py` 中使用 QPainter 绘制。`assets/` 已预留；后续可保持状态接口不变，替换成低帧率 sprite sheet。
+角色资源位于 `assets/rita/rita_sprite_sheet.png`，布局固定为 3×2：
+
+```text
+idle | walk | sit
+stretch | critical | sleep
+```
+
+每格尺寸相同、背景必须使用真实透明 alpha。保持这个布局即可替换角色，不需要修改额度或状态机代码。颜色、字体和菜单样式集中在 `src/codex_usage_pet/ui/theme.py`。
 
 ## 项目结构
 
@@ -178,6 +187,8 @@ assets/
 ## 开源研究与许可证
 
 项目本身采用 MIT 许可证。研究记录见 [OPEN_SOURCE_RESEARCH.md](OPEN_SOURCE_RESEARCH.md)，attribution 见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。四个指定参考项目均为 MIT；本仓库没有复制它们的源码模块或素材，而是重新实现通信、UI 与状态逻辑。
+
+Rita 风格 sprite sheet 是根据[视觉研究记录](RITA_VISUAL_RESEARCH.md)中的文字简报重新生成的原创 fan-art 素材，没有下载、裁剪或嵌入官方立绘、游戏纹理或第三方同人图。
 
 运行时使用 PySide6 Essentials / Qt。发布目录包含运行时许可说明，Qt 动态库保持独立可替换。
 
