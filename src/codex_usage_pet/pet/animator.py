@@ -23,32 +23,19 @@ class PetActivity(str, Enum):
 
 
 class PetBehaviorController:
-    """Quota-driven base pose; optional interactions are scheduled by the UI."""
+    """Stores the selected base pose; action policy owns state-to-pose choice."""
 
     def __init__(self) -> None:
         self.quota_state = PetState.NORMAL
         self.activity = PetActivity.IDLE
-        self._sequence_index = 0
-        self._ticks_in_activity = 0
 
-    def set_quota_state(self, state: PetState) -> PetActivity:
+    def set_quota_state(
+        self, state: PetState, base_activity: PetActivity | str = PetActivity.IDLE
+    ) -> PetActivity | str:
         self.quota_state = state
-        self._sequence_index = 0
-        self._ticks_in_activity = 0
-        self.activity = self._forced_activity(state)
+        self.activity = base_activity
         return self.activity
 
-    def advance(self) -> PetActivity:
-        self.activity = self._forced_activity(self.quota_state)
+    def advance(self) -> PetActivity | str:
         return self.activity
-
-    @staticmethod
-    def _forced_activity(state: PetState) -> PetActivity:
-        return {
-            PetState.NORMAL: PetActivity.IDLE,
-            PetState.LOW: PetActivity.SIT,
-            PetState.CRITICAL: PetActivity.CRITICAL,
-            PetState.EMPTY: PetActivity.SLEEP,
-            PetState.RECOVERED: PetActivity.STRETCH,
-        }[state]
 

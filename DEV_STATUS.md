@@ -1,14 +1,14 @@
 # Development status
 
-Updated: 2026-09-23
+Updated: 2026-09-24
 
 ## Current phase
 
-**Release Candidate 0.1.0** — phases 1–12, Rita UI art pass, extensible Skin Pack system, interaction/layout stabilization, and the hatch-pet animation upgrade are complete.
+**Release Candidate 0.1.0** — phases 1–12, Rita UI art pass, extensible Skin Pack system, interaction/layout stabilization, hatch-pet animation upgrade, and configurable Action Policy are complete.
 
 ## Final acceptance
 
-- Automated tests: **116 passed** with Qt offscreen; the release build repeats the full suite before packaging.
+- Automated tests: **130 passed** with Qt offscreen; the release build repeats the full suite before packaging.
 - Frozen EXE smoke test: exit code 0; completed a real App Server read; no new App Server process remained after exit.
 - Portable test: extracted into a new `%TEMP%` directory outside the source tree, completed a real App Server read, exited 0, and left no child process behind.
 - Live Codex App Server read: account type `chatgpt`, plan `plus`, Codex bucket, 5-hour and weekly windows, credits, and reset-credit count were returned.
@@ -100,6 +100,17 @@ Inno Setup 6 is not installed on this machine, so no installer executable was bu
 - Automated suite: **116 passed**. The release EXE and portable ZIP were rebuilt, and the ZIP contains the updated executable and documentation.
 - A real link was created at the current user's Desktop and inspected successfully: filename, target, working directory, and icon were correct, including the Chinese target path. A freshly extracted Portable EXE then replaced the target in-place, and a second update restored the release path while the Desktop still contained exactly one link.
 - Explorer/PowerShell launch verification was blocked by the host's enterprise Code Integrity policy because the locally rebuilt EXE is unsigned (events 3033/3077, policy ID `{0283ac0f-fff1-49ae-ada1-8a933130cad6}`). The policy was not bypassed or modified.
+
+## Configurable Action Policy acceptance
+
+- Inserted a policy/selector layer between events and the existing animation player. Hover, Click, Random Idle, RECOVERED, and NORMAL/LOW/CRITICAL/EMPTY state phases now choose from Skin-defined weighted candidates rather than forcing one animation in UI code.
+- LOW, CRITICAL, and EMPTY each support distinct `on_enter`, persistent `idle`, and `on_exit` pools. Existing priority remains system state > Click > Hover > Random Idle > idle; priority selects the event class, never the concrete animation.
+- Candidates support `none`, per-action cooldown ranges, `allowed_states`, missing-asset filtering, and three-item session history with immediate-repeat avoidance. Empty or unsupported pools safely use the base pose.
+- Added “互动设置 → 动作设置…” with per-Skin enable/disable overrides and one-click restoration of the Skin defaults. Overrides persist independently by Skin ID without modifying the manifest.
+- Extended Skin Pack state IDs to support future custom animations without adding them to the `PetActivity` enum. Both bundled Rita skins now declare different action weights, timing, and response frequency.
+- Native Qt policy QA ran 60 selections each for Hover, Click, and Random Idle. Umbral Rose produced Hover/none/Blink = 24/13/23, Click/Wave/Tidy Hair/none = 22/13/17/8, and Wave/Tidy Hair/Blink/none = 10/20/19/11; the screen anchor stayed fixed at every selection. Evidence: `artifacts/action-policy-validation.json`.
+- Automated tests: **130 passed**, including selection diversity, unsupported/state filtering, cooldown, repeat avoidance, single/empty pools, `none`, user override/reset, per-Skin personality, custom action IDs, concise `action_pools` compatibility, state phase ordering, priority protection, and anchor preservation.
+- Rebuilt frozen EXE and portable ZIP both passed `--smoke-test` with exit code 0. A freshly extracted portable copy ran outside the source directory, left no App Server child process, and contained both Skin policies plus project/Qt license files.
 
 ## Known limitations
 

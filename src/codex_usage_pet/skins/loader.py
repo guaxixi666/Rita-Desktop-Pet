@@ -8,6 +8,7 @@ from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
+from codex_usage_pet.pet.action_policy import parse_action_policy
 from codex_usage_pet.pet.animator import PetActivity
 from codex_usage_pet.services.paths import app_data_dir, resource_path
 
@@ -16,7 +17,7 @@ from .models import DEFAULT_SKIN_ID, SkinPack, SkinStateAsset, SkinTheme
 LOGGER = logging.getLogger(__name__)
 _ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 _COLOR_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
-_FALLBACKS = {
+_FALLBACKS: dict[PetActivity, tuple[PetActivity, ...]] = {
     PetActivity.WALK: (PetActivity.IDLE,),
     PetActivity.SIT: (PetActivity.IDLE,),
     PetActivity.SIT_TRANSITION: (PetActivity.SIT, PetActivity.IDLE),
@@ -101,11 +102,15 @@ def load_skin(manifest: Path) -> SkinPack:
     state_payload = raw.get("states")
     if not isinstance(state_payload, dict) or "idle" not in state_payload:
         raise InvalidSkinError("an idle state is required")
-    parsed: dict[PetActivity, SkinStateAsset] = {}
-    for activity in PetActivity:
-        value = state_payload.get(activity.value)
-        if value is None:
-            continue
+    parsed: dict[PetActivity | str, SkinStateAsset] = {}
+    for action_name, value in state_payload.items():
+        text = str(action_name).strip().lower()
+        if not _ID_PATTERN.fullmatch(text):
+            raise InvalidSkinError(f"invalid action id: {text}")
+        try:
+            activity: PetActivity | str = PetActivity(text)
+        except ValueError:
+            activity = text
         parsed[activity] = _parse_state(root, activity, value)
     if PetActivity.IDLE not in parsed:
         raise InvalidSkinError("idle asset is invalid")
@@ -149,6 +154,7 @@ def load_skin(manifest: Path) -> SkinPack:
         preview_path=preview_path,
         theme=theme,
         states=resolved,
+        action_policy=parse_action_policy(raw.get("action_policy", raw.get("action_pools"))),
         preferred_width=_bounded_int(raw.get("preferred_width"), 222, 80, 320),
         preferred_height=_bounded_int(raw.get("preferred_height"), 222, 80, 320),
         anchor_x=_bounded_float(raw.get("anchor_x"), 0.0, -160.0, 160.0),
@@ -170,46 +176,49 @@ def _parse_theme(value: Any) -> SkinTheme:
     return SkinTheme(**values)
 
 
-def _parse_state(root: Path, activity: PetActivity, value: Any) -> SkinStateAsset:
+def _parse_state(root: Path, activity: PetActivity | str, value: Any) -> SkinStateAsset:
+    activity_name = activity.value if isinstance(activity, PetActivity) else activity
     data = {"file": value} if isinstance(value, str) else value
     if not isinstance(data, dict) or not (data.get("file") or data.get("source")):
-        raise InvalidSkinError(f"invalid {activity.value} state")
+        raise InvalidSkinError(f"invalid {activity_name} state")
     path = _safe_asset(root, str(data.get("file") or data["source"]))
     if not path.is_file():
-        raise InvalidSkinError(f"missing asset for {activity.value}")
+        raise InvalidSkinError(f"missing asset for {activity_name}")
     grid_raw = data.get("grid", [1, 1])
     cell_raw = data.get("cell")
     grid = _pair(grid_raw, (1, 1), minimum=1)
     cell = _pair(cell_raw, (0, 0), minimum=0) if cell_raw is not None else None
     if cell is not None and (cell[0] >= grid[0] or cell[1] >= grid[1]):
-        raise InvalidSkinError(f"cell outside grid for {activity.value}")
+        raise InvalidSkinError(f"cell outside grid for {activity_name}")
     frames_raw = data.get("frames")
     frames: tuple[tuple[int, int], ...] = ()
     if isinstance(frames_raw, list):
         parsed_frames = tuple(_pair(item, (0, 0), minimum=0) for item in frames_raw)
         if any(frame[0] >= grid[0] or frame[1] >= grid[1] for frame in parsed_frames):
-            raise InvalidSkinError(f"animation frame outside grid for {activity.value}")
+            raise InvalidSkinError(f"animation frame outside grid for {activity_name}")
         frames = parsed_frames
     elif isinstance(frames_raw, int) and frames_raw > 0:
         frames = tuple((index % grid[0], index // grid[0]) for index in range(frames_raw))
         if any(frame[1] >= grid[1] for frame in frames):
-            raise InvalidSkinError(f"animation frame outside grid for {activity.value}")
+            raise InvalidSkinError(f"animation frame outside grid for {activity_name}")
     fps = _bounded_float(data.get("fps"), 0.0, 0.0, 30.0)
     durations_raw = data.get("frame_durations_ms")
     frame_durations_ms: tuple[int, ...] = ()
     if durations_raw is not None:
         if not isinstance(durations_raw, list) or len(durations_raw) != (len(frames) or 1):
             raise InvalidSkinError(
-                f"frame_durations_ms must match frame count for {activity.value}"
+                f"frame_durations_ms must match frame count for {activity_name}"
             )
         try:
             frame_durations_ms = tuple(int(value) for value in durations_raw)
         except (TypeError, ValueError) as exc:
-            raise InvalidSkinError(f"invalid frame duration for {activity.value}") from exc
+            raise InvalidSkinError(f"invalid frame duration for {activity_name}") from exc
         if any(value < 33 or value > 10_000 for value in frame_durations_ms):
-            raise InvalidSkinError(f"frame duration outside range for {activity.value}")
+            raise InvalidSkinError(f"frame duration outside range for {activity_name}")
     if frames and len(frames) > 1 and fps <= 0 and not frame_durations_ms:
-        raise InvalidSkinError(f"animated state requires fps or frame durations for {activity.value}")
+        raise InvalidSkinError(
+            f"animated state requires fps or frame durations for {activity_name}"
+        )
     return SkinStateAsset(
         activity=activity,
         path=path,

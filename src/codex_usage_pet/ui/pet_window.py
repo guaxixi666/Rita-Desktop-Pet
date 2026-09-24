@@ -16,6 +16,7 @@ from codex_usage_pet.skins.loader import user_skin_dir
 from codex_usage_pet.skins.manager import SkinManager
 from codex_usage_pet.skins.models import SkinPack
 
+from .action_settings import ActionSettingsDialog
 from .pet_widget import PetWidget
 from .theme import menu_style
 from .usage_bubble import UsageBubble
@@ -51,7 +52,11 @@ class PetWindow(QWidget):
         self._snapshot: UsageSnapshot | None = None
         self._state_tracker = PetStateTracker()
 
-        self.pet = PetWidget(self.current_skin, self)
+        self.pet = PetWidget(
+            self.current_skin,
+            self,
+            action_overrides=self._action_overrides_for(self.current_skin.id),
+        )
         self.pet.move(0, 0)
         self.resize(self.pet.size())
         self.bubble = UsageBubble()
@@ -137,6 +142,10 @@ class PetWindow(QWidget):
         locked.setCheckable(True)
         locked.setChecked(self.settings.locked)
         locked.triggered.connect(self.set_locked)
+
+        interaction_menu = menu.addMenu("互动设置")
+        actions = interaction_menu.addAction("动作设置…")
+        actions.triggered.connect(self.open_action_settings)
 
         skin_menu = menu.addMenu("皮肤")
         current = skin_menu.addAction(f"当前：{self.current_skin.name}")
@@ -296,6 +305,31 @@ class PetWindow(QWidget):
         self.interval_changed.emit(seconds)
         self.save_settings()
 
+    def open_action_settings(self) -> None:
+        dialog = ActionSettingsDialog(
+            self.current_skin,
+            self._action_overrides_for(self.current_skin.id),
+            self,
+        )
+        if dialog.exec() != dialog.DialogCode.Accepted:
+            return
+        self.set_action_pool_overrides(dialog.selected_overrides())
+
+    def set_action_pool_overrides(self, overrides: dict[str, list[str]]) -> None:
+        if overrides:
+            self.settings.action_pool_overrides[self.current_skin.id] = overrides
+        else:
+            self.settings.action_pool_overrides.pop(self.current_skin.id, None)
+        self.pet.set_action_overrides(overrides)
+        self.save_settings()
+        self.menu_changed.emit()
+
+    def reset_action_pool_overrides(self) -> None:
+        self.set_action_pool_overrides({})
+
+    def _action_overrides_for(self, skin_id: str) -> dict[str, list[str]]:
+        return self.settings.action_pool_overrides.get(skin_id, {})
+
     def set_startup_enabled(self, enabled: bool) -> None:
         try:
             self.startup.set_enabled(enabled)
@@ -379,7 +413,7 @@ class PetWindow(QWidget):
         self._pending_skin = None
         anchor = self.pet_anchor
         self.current_skin = pack
-        self.pet.apply_skin(pack)
+        self.pet.apply_skin(pack, self._action_overrides_for(pack.id))
         self.bubble.set_skin(pack)
         self._move_to_anchor(anchor)
         self.pet._opacity_effect.setOpacity(0.0)

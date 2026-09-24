@@ -16,6 +16,8 @@ from codex_usage_pet.pet.animator import PetActivity
 from codex_usage_pet.pet.states import PetState
 from codex_usage_pet.services.settings import AppSettings, SettingsStore
 from codex_usage_pet.services.startup import StartupManager
+from codex_usage_pet.skins.loader import SkinRepository
+from codex_usage_pet.ui.action_settings import ActionSettingsDialog
 from codex_usage_pet.ui.pet_window import PetWindow
 from codex_usage_pet.ui.tray import TrayIcon
 
@@ -81,7 +83,7 @@ def test_snapshot_updates_bubble_and_pet_state(app, tmp_path: Path) -> None:
     )
     window.set_snapshot(snapshot)
     assert window.pet.state is PetState.CRITICAL
-    assert window.pet.activity is PetActivity.CRITICAL
+    assert window.pet.activity in {PetActivity.CRITICAL, PetActivity.SIT}
     assert "见底" in window.bubble.status.text()
     assert "5%" in window.bubble.five_hour.detail.text()
     window.deleteLater()
@@ -97,16 +99,16 @@ def test_usage_visibility_is_saved(app, tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("used", "expected_state", "expected_activity"),
+    ("used", "expected_state", "expected_activities"),
     [
-        (20, PetState.NORMAL, PetActivity.IDLE),
-        (75, PetState.LOW, PetActivity.SIT),
-        (95, PetState.CRITICAL, PetActivity.CRITICAL),
-        (100, PetState.EMPTY, PetActivity.SLEEP),
+        (20, PetState.NORMAL, {PetActivity.IDLE}),
+        (75, PetState.LOW, {PetActivity.SIT_TRANSITION, PetActivity.SIT, PetActivity.IDLE}),
+        (95, PetState.CRITICAL, {PetActivity.CRITICAL, PetActivity.SIT}),
+        (100, PetState.EMPTY, {PetActivity.SLEEP}),
     ],
 )
 def test_quota_states_drive_expected_pet_pose(
-    app, tmp_path: Path, used: int, expected_state: PetState, expected_activity: PetActivity
+    app, tmp_path: Path, used: int, expected_state: PetState, expected_activities: set[PetActivity]
 ) -> None:
     window = make_window(tmp_path)
     window.set_snapshot(
@@ -115,15 +117,14 @@ def test_quota_states_drive_expected_pet_pose(
         )
     )
     assert window.pet.state is expected_state
-    if expected_state is PetState.LOW:
-        assert window.pet.activity is PetActivity.SIT_TRANSITION
+    if window.pet.activity is PetActivity.SIT_TRANSITION:
         for _ in range(window.pet.skin.asset_for(PetActivity.SIT_TRANSITION).frame_count):
             window.pet._advance_frame()
-    assert window.pet.activity is expected_activity
+    assert window.pet.activity in expected_activities
     window.deleteLater()
 
 
-def test_recovered_stretches_then_returns_to_normal(app, tmp_path: Path) -> None:
+def test_recovered_uses_pool_then_returns_to_normal(app, tmp_path: Path) -> None:
     window = make_window(tmp_path)
     low = parse_rate_limits(
         {"rateLimits": {"primary": {"usedPercent": 95, "windowDurationMins": 300}}}
@@ -134,7 +135,12 @@ def test_recovered_stretches_then_returns_to_normal(app, tmp_path: Path) -> None
     window.set_snapshot(low)
     window.set_snapshot(recovered)
     assert window.pet.state is PetState.RECOVERED
-    assert window.pet.activity is PetActivity.STRETCH
+    assert window.pet.activity in {
+        PetActivity.WAVE,
+        PetActivity.HOVER,
+        PetActivity.STRETCH,
+        PetActivity.IDLE,
+    }
     assert "恢复" in window.bubble.status.text()
     window._finish_recovered()
     assert window.pet.state is PetState.NORMAL
@@ -181,6 +187,7 @@ def test_menu_tray_screen_and_dpi_basics(app, tmp_path: Path) -> None:
         "显示额度",
         "始终置顶",
         "锁定位置",
+        "互动设置",
         "开机启动",
         "创建桌面快捷方式",
         "删除桌面快捷方式",
@@ -241,6 +248,30 @@ def test_shortcut_menu_updates_create_and_delete_state(app, tmp_path: Path) -> N
 
     window.delete_desktop_shortcut()
     assert shortcuts.created is False
+    window.deleteLater()
+
+
+def test_action_settings_user_override_and_restore_defaults(app, tmp_path: Path) -> None:
+    repository = SkinRepository([Path(__file__).parents[1] / "skins"])
+    skin = repository.scan()["rita_umbral_rose"]
+    dialog = ActionSettingsDialog(skin, {"hover": ["blink"]})
+    assert dialog.selected_overrides()["hover"] == ["blink"]
+    dialog.restore_defaults()
+    assert dialog.selected_overrides() == {}
+    dialog.deleteLater()
+
+
+def test_action_settings_are_saved_per_skin(app, tmp_path: Path) -> None:
+    path = tmp_path / "settings.json"
+    window = PetWindow(AppSettings(), SettingsStore(path), StartupManager(registry=None))
+    window.set_action_pool_overrides({"hover": ["none"], "click": ["wave"]})
+    restored = SettingsStore(path).load()
+    assert restored.action_pool_overrides[window.current_skin.id] == {
+        "hover": ["none"],
+        "click": ["wave"],
+    }
+    window.reset_action_pool_overrides()
+    assert window.current_skin.id not in SettingsStore(path).load().action_pool_overrides
     window.deleteLater()
 
 

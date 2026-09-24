@@ -1,0 +1,33 @@
+{
+  "skin": "rita_umbral_rose",
+  "iterations_per_event": 60,
+  "anchor": [
+    1881,
+    1001
+  ],
+  "anchor_preserved": true,
+  "outcomes": {
+    "hover": {
+      "hover": 24,
+      "none": 13,
+      "blink": 23
+    },
+    "click": {
+      "click": 22,
+      "wave": 13,
+      "stretch": 17,
+      "none": 8
+    },
+    "idle_random": {
+      "wave": 10,
+      "stretch": 20,
+      "blink": 19,
+      "none": 11
+    }
+  },
+  "recent_history": [
+    "blink",
+    "stretch",
+    "blink"
+  ]
+}

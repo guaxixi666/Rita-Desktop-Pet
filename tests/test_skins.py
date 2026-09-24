@@ -97,6 +97,33 @@ def test_frame_durations_parse_without_fps(tmp_path: Path) -> None:
     assert asset.duration_ms == 300
 
 
+def test_skin_can_define_and_select_a_custom_action_id(tmp_path: Path) -> None:
+    directory = _write_skin(
+        tmp_path,
+        "custom_action",
+        states={"idle": "idle.png", "curtsy": "idle.png"},
+    )
+    manifest = directory / "skin.json"
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["action_policy"] = {
+        "pools": {
+            "click": [
+                {
+                    "action": "curtsy",
+                    "weight": 100,
+                    "allowed_states": ["normal"],
+                }
+            ]
+        }
+    }
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    pack = load_skin(manifest)
+    assert "curtsy" in pack.supported_actions
+    assert pack.resolve_activity("curtsy") == "curtsy"
+    assert pack.action_policy.pool("click")[0].action == "curtsy"
+
+
 def test_frame_duration_count_must_match_frames(tmp_path: Path) -> None:
     states = {
         "idle": "idle.png",

@@ -61,6 +61,7 @@ def test_idle_does_not_move_screen_position(app, tmp_path: Path) -> None:
 
 def test_hover_action_preserves_anchor(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
+    window.pet.set_action_overrides({"hover": ["hover"]})
     before = window.pet_anchor
     assert window.pet.play_hover_reaction(now=10.0)
     assert window.pet_anchor == before
@@ -71,6 +72,7 @@ def test_hover_action_preserves_anchor(app, tmp_path: Path) -> None:
 
 def test_click_action_preserves_anchor(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
+    window.pet.set_action_overrides({"click": ["click"]})
     before = window.pet_anchor
     assert window.pet.play_click_reaction(now=10.0)
     assert window.pet_anchor == before
@@ -178,10 +180,14 @@ def test_quota_states_are_not_overridden_by_idle_actions(
     window.pet.set_state(state)
     window.pet._run_idle_action()
     if state is PetState.LOW:
-        assert window.pet.activity is PetActivity.SIT_TRANSITION
-        for _ in range(window.pet.skin.asset_for(PetActivity.SIT_TRANSITION).frame_count):
-            window.pet._advance_frame()
-    assert window.pet.activity is activity
+        if window.pet.activity is PetActivity.SIT_TRANSITION:
+            for _ in range(window.pet.skin.asset_for(PetActivity.SIT_TRANSITION).frame_count):
+                window.pet._advance_frame()
+        assert window.pet.activity in {PetActivity.SIT, PetActivity.IDLE}
+    elif state is PetState.CRITICAL:
+        assert window.pet.activity in {PetActivity.CRITICAL, PetActivity.SIT}
+    else:
+        assert window.pet.activity is activity
     assert window.pet._action_activity is None
     window.deleteLater()
 
@@ -205,15 +211,17 @@ def test_random_idle_timer_interval_is_in_requested_range(app, tmp_path: Path) -
 
 def test_click_cooldown_blocks_repeated_action(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
+    window.pet.set_action_overrides({"click": ["click"]})
     assert window.pet.play_click_reaction(now=10.0)
     window.pet._finish_action()
     assert not window.pet.play_click_reaction(now=10.5)
-    assert window.pet.play_click_reaction(now=11.1)
+    assert window.pet.play_click_reaction(now=13.0)
     window.deleteLater()
 
 
 def test_click_preempts_hover_and_returns_to_base_pose(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
+    window.pet.set_action_overrides({"hover": ["hover"], "click": ["click"]})
     assert window.pet.play_hover_reaction(now=10.0)
     assert window.pet.activity is PetActivity.HOVER
     assert window.pet.play_click_reaction(now=10.1)
@@ -225,9 +233,10 @@ def test_click_preempts_hover_and_returns_to_base_pose(app, tmp_path: Path) -> N
 
 def test_hover_only_fires_once_while_pointer_remains(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
+    window.pet.set_action_overrides({"hover": ["hover"]})
     assert window.pet.play_hover_reaction(now=10.0)
     assert not window.pet.play_hover_reaction(now=10.1)
     window.pet._finish_action()
     assert not window.pet.play_hover_reaction(now=10.5)
-    assert window.pet.play_hover_reaction(now=12.0)
+    assert window.pet.play_hover_reaction(now=19.0)
     window.deleteLater()

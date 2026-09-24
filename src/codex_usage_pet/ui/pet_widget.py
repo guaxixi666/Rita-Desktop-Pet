@@ -2,13 +2,20 @@ from __future__ import annotations
 
 import math
 import random
-import time
 from pathlib import Path
 
 from PySide6.QtCore import QEasingCurve, QEvent, QPointF, QPropertyAnimation, QRect, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QImage, QPainter, QPixmap
 from PySide6.QtWidgets import QGraphicsOpacityEffect, QWidget
 
+from codex_usage_pet.pet.action_policy import (
+    ActionDecision,
+    ActionEvent,
+    ActionSelector,
+    enter_event,
+    exit_event,
+    persistent_event,
+)
 from codex_usage_pet.pet.animator import PetActivity, PetBehaviorController
 from codex_usage_pet.pet.states import PetState
 from codex_usage_pet.skins.models import SkinPack, SkinStateAsset
@@ -50,12 +57,12 @@ class PetWidget(QWidget):
     CANVAS_WIDTH = 232.0
     CANVAS_HEIGHT = 244.0
     SAFE_PADDING = 4
-    HOVER_COOLDOWN_SECONDS = 1.5
-    CLICK_COOLDOWN_SECONDS = 1.0
-    IDLE_INTERVAL_MIN_MS = 45_000
-    IDLE_INTERVAL_MAX_MS = 150_000
     POST_ACTION_IDLE_MIN_MS = 15_000
     POST_ACTION_IDLE_MAX_MS = 30_000
+    PRIORITY_IDLE = 1
+    PRIORITY_HOVER = 2
+    PRIORITY_CLICK = 3
+    PRIORITY_SYSTEM = 4
 
     def __init__(
         self,
@@ -63,6 +70,7 @@ class PetWidget(QWidget):
         parent: QWidget | None = None,
         *,
         rng: random.Random | None = None,
+        action_overrides: dict[str, list[str]] | None = None,
     ) -> None:
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -73,6 +81,9 @@ class PetWidget(QWidget):
         self.activity = PetActivity.IDLE
         self.skin = skin
         self._rng = rng or random.Random()
+        self.action_selector = ActionSelector(
+            skin.action_policy, rng=self._rng, overrides=action_overrides
+        )
         self._pixmaps: dict[Path, QPixmap] = {}
         self._frame_cache: dict[tuple[Path, tuple[int, int], tuple[int, int]], QPixmap] = {}
         self._bounds: dict[tuple[Path, tuple[tuple[int, int], ...], tuple[int, int]], QRect] = {}
@@ -84,10 +95,10 @@ class PetWidget(QWidget):
         self._anchor_offset = QPointF()
         self._left_extent = self.CANVAS_WIDTH / 2
         self._right_extent = self.CANVAS_WIDTH / 2
-        self._action_activity: PetActivity | None = None
+        self._action_activity: PetActivity | str | None = None
+        self._action_priority = 0
+        self._pending_system_decisions: list[tuple[ActionDecision, PetState]] = []
         self._frame_index = 0
-        self._last_hover_at = -10_000.0
-        self._last_click_at = -10_000.0
 
         self._opacity_effect = QGraphicsOpacityEffect(self)
         self._opacity_effect.setOpacity(1.0)
@@ -105,7 +116,7 @@ class PetWidget(QWidget):
         self._idle_timer.setSingleShot(True)
         self._idle_timer.timeout.connect(self._run_idle_action)
 
-        self.apply_skin(skin)
+        self.apply_skin(skin, action_overrides)
         self._schedule_idle_action()
 
     @property
@@ -134,9 +145,13 @@ class PetWidget(QWidget):
         """Maximum visible pixels left/right of the shared screen anchor."""
         return math.ceil(self._left_extent), math.ceil(self._right_extent)
 
-    def apply_skin(self, skin: SkinPack) -> None:
+    def apply_skin(
+        self, skin: SkinPack, action_overrides: dict[str, list[str]] | None = None
+    ) -> None:
         self._frame_timer.stop()
         self.skin = skin
+        self.action_selector.set_policy(skin.action_policy)
+        self.action_selector.set_overrides(action_overrides)
         self._pixmaps = {asset.path: QPixmap(str(asset.path)) for asset in skin.states.values()}
         self._frame_cache.clear()
         self._bounds.clear()
@@ -145,72 +160,57 @@ class PetWidget(QWidget):
         # released on the next skin change.
         self._frame_cache.clear()
         self._frame_index = 0
+        base = self._choose_base_pose(self.state)
+        self.activity = self.behavior.set_quota_state(self.state, base)
         self._prepare_visual()
         self._start_frame_timer()
-        self.setToolTip(f"{skin.name} · {self.state.value} · {self.activity.value}")
+        self._update_tooltip()
         self.update()
 
+    def set_action_overrides(self, overrides: dict[str, list[str]] | None) -> None:
+        self.action_selector.set_overrides(overrides)
+
     def set_state(self, state: PetState) -> None:
-        changed = state is not self.state
+        previous = self.state
+        changed = state is not previous
+        if not changed:
+            return
         self.state = state
         self._action_timer.stop()
         self._frame_timer.stop()
         self._action_activity = None
-        self.activity = self.behavior.set_quota_state(state)
-        if (
-            changed
-            and state is PetState.LOW
-            and self.skin.has_explicit_state(PetActivity.SIT_TRANSITION)
-        ):
-            self._action_activity = PetActivity.SIT_TRANSITION
-            self.activity = PetActivity.SIT_TRANSITION
+        self._action_priority = 0
+        self._pending_system_decisions.clear()
+        base = self._choose_base_pose(state)
+        self.activity = self.behavior.set_quota_state(state, base)
         self._frame_index = 0
         self._prepare_visual()
         self._start_frame_timer()
-        self.setToolTip(f"{self.skin.name} · {state.value} · {self.activity.value}")
-        if changed:
-            self._transition.stop()
-            self._transition.setStartValue(0.58)
-            self._transition.setEndValue(1.0)
-            self._transition.start()
+        self._update_tooltip()
+        outgoing = exit_event(previous)
+        incoming = enter_event(state)
+        if outgoing is not None:
+            self._pending_system_decisions.append(
+                (self._choose(outgoing, previous, use_cooldown=False), previous)
+            )
+        if incoming is not None:
+            self._pending_system_decisions.append(
+                (self._choose(incoming, state, use_cooldown=False), state)
+            )
+        self._play_next_system_decision()
+        self._transition.stop()
+        self._transition.setStartValue(0.58)
+        self._transition.setEndValue(1.0)
+        self._transition.start()
         self.update()
 
     def play_hover_reaction(self, now: float | None = None) -> bool:
-        moment = time.monotonic() if now is None else now
-        if self.state is not PetState.NORMAL or self._action_activity is not None:
-            return False
-        asset = self.skin.asset_for(PetActivity.HOVER)
-        cooldown = asset.cooldown_ms / 1000 or self.HOVER_COOLDOWN_SECONDS
-        if moment - self._last_hover_at < cooldown:
-            return False
-        if not self.skin.has_explicit_state(PetActivity.HOVER):
-            return False
-        self._last_hover_at = moment
-        return self._start_action(PetActivity.HOVER)
+        decision = self._choose(ActionEvent.HOVER, self.state, now=now)
+        return self._start_decision(decision, self.PRIORITY_HOVER, now)
 
     def play_click_reaction(self, now: float | None = None) -> bool:
-        moment = time.monotonic() if now is None else now
-        if self.state in {PetState.CRITICAL, PetState.RECOVERED}:
-            return False
-        activity = PetActivity.SLEEP_REACT if self.state is PetState.EMPTY else PetActivity.CLICK
-        asset = self.skin.asset_for(activity)
-        cooldown = asset.cooldown_ms / 1000 or self.CLICK_COOLDOWN_SECONDS
-        if moment - self._last_click_at < cooldown:
-            return False
-        if not self.skin.has_explicit_state(activity):
-            return False
-        # Click outranks hover and autonomous idle actions.  This matters in
-        # real use because a pointer entry usually happens just before a click.
-        if self._action_activity is activity or (
-            self._action_activity is not None
-            and not self.skin.asset_for(self._action_activity).interruptible
-        ):
-            return False
-        if self._action_activity is not None:
-            self._action_timer.stop()
-            self._action_activity = None
-        self._last_click_at = moment
-        return self._start_action(activity)
+        decision = self._choose(ActionEvent.CLICK, self.state, now=now)
+        return self._start_decision(decision, self.PRIORITY_CLICK, now)
 
     def enterEvent(self, event: QEvent) -> None:
         self.play_hover_reaction()
@@ -226,10 +226,22 @@ class PetWidget(QWidget):
             self._prepare_visual()
             self.update()
 
-    def _start_action(self, activity: PetActivity, duration_ms: int | None = None) -> bool:
+    def _start_action(
+        self,
+        activity: PetActivity | str,
+        duration_ms: int | None = None,
+        *,
+        priority: int = PRIORITY_IDLE,
+    ) -> bool:
         if self._action_activity is not None:
-            return False
+            if priority <= self._action_priority:
+                return False
+            if not self.skin.asset_for(self._action_activity).interruptible:
+                return False
+            self._action_timer.stop()
+            self._frame_timer.stop()
         self._action_activity = activity
+        self._action_priority = priority
         self.activity = activity
         self._frame_timer.stop()
         self._frame_index = 0
@@ -238,7 +250,7 @@ class PetWidget(QWidget):
         self._start_frame_timer()
         if asset.frame_count <= 1:
             self._action_timer.start(duration_ms or asset.duration_ms or 600)
-        self.setToolTip(f"{self.skin.name} · {self.state.value} · {activity.value}")
+        self._update_tooltip()
         self.update()
         return True
 
@@ -246,44 +258,95 @@ class PetWidget(QWidget):
         self._action_timer.stop()
         self._frame_timer.stop()
         self._action_activity = None
-        self.activity = self.behavior.set_quota_state(self.state)
+        self._action_priority = 0
+        self.activity = self.behavior.advance()
         self._frame_index = 0
         self._prepare_visual()
         self._start_frame_timer()
-        self.setToolTip(f"{self.skin.name} · {self.state.value} · {self.activity.value}")
+        self._update_tooltip()
+        if self._pending_system_decisions:
+            self._play_next_system_decision()
+            return
         self._idle_timer.start(
             self._rng.randint(self.POST_ACTION_IDLE_MIN_MS, self.POST_ACTION_IDLE_MAX_MS)
         )
         self.update()
 
     def _schedule_idle_action(self) -> None:
-        interval = self._rng.randint(self.IDLE_INTERVAL_MIN_MS, self.IDLE_INTERVAL_MAX_MS)
+        policy = self.action_selector.policy
+        interval = self._rng.randint(
+            policy.idle_interval_min_ms, policy.idle_interval_max_ms
+        )
         self._idle_timer.start(interval)
 
     def _run_idle_action(self) -> None:
         try:
-            if (
-                self.state is PetState.NORMAL
-                and self._action_activity is None
-                and self._rng.random() < 0.7
-            ):
-                weighted = [
-                    (PetActivity.BLINK, 50),
-                    (PetActivity.WAVE, 20),
-                    (PetActivity.STRETCH, 20),
-                    (PetActivity.LOOK_LEFT, 5),
-                    (PetActivity.LOOK_RIGHT, 5),
-                ]
-                candidates = [item for item in weighted if self.skin.has_explicit_state(item[0])]
-                if candidates:
-                    activity = self._rng.choices(
-                        [item[0] for item in candidates],
-                        weights=[item[1] for item in candidates],
-                        k=1,
-                    )[0]
-                    self._start_action(activity)
+            if self.state is PetState.NORMAL and self._action_activity is None:
+                if self._rng.random() < self.action_selector.policy.idle_trigger_probability:
+                    decision = self._choose(ActionEvent.IDLE_RANDOM, self.state)
+                    self._start_decision(decision, self.PRIORITY_IDLE)
         finally:
             self._schedule_idle_action()
+
+    def _choose(
+        self,
+        event: ActionEvent,
+        state: PetState,
+        *,
+        now: float | None = None,
+        use_cooldown: bool = True,
+        avoid_repeat: bool = True,
+    ) -> ActionDecision:
+        return self.action_selector.choose(
+            event,
+            state=state,
+            supported_actions=self.skin.supported_actions,
+            now=now,
+            use_cooldown=use_cooldown,
+            avoid_repeat=avoid_repeat,
+        )
+
+    def _choose_base_pose(self, state: PetState) -> PetActivity | str:
+        decision = self._choose(
+            persistent_event(state),
+            state,
+            use_cooldown=False,
+            avoid_repeat=False,
+        )
+        if decision.action is None:
+            return PetActivity.IDLE
+        return self._resolve_activity(decision.action)
+
+    def _start_decision(
+        self, decision: ActionDecision, priority: int, now: float | None = None
+    ) -> bool:
+        if decision.action is None:
+            return False
+        activity = self._resolve_activity(decision.action)
+        if not self._start_action(activity, priority=priority):
+            return False
+        asset = self.skin.asset_for(activity)
+        self.action_selector.commit(
+            decision,
+            now=now,
+            fallback_cooldown_ms=asset.cooldown_ms,
+        )
+        return True
+
+    def _play_next_system_decision(self) -> None:
+        while self._pending_system_decisions:
+            decision, _selection_state = self._pending_system_decisions.pop(0)
+            if self._start_decision(decision, self.PRIORITY_SYSTEM):
+                return
+
+    def _resolve_activity(self, action: str) -> PetActivity | str:
+        resolved = self.skin.resolve_activity(action)
+        assert resolved is not None
+        return resolved
+
+    def _update_tooltip(self) -> None:
+        activity = self.activity.value if isinstance(self.activity, PetActivity) else self.activity
+        self.setToolTip(f"{self.skin.name} · {self.state.value} · {activity}")
 
     def _prepare_visual(self) -> None:
         asset = self.skin.asset_for(self.activity)

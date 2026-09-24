@@ -64,7 +64,14 @@ def test_blink_frame_sequence_is_declared_and_returns_idle(app) -> None:
 
 
 def test_click_animation_returns_to_low_sit(app) -> None:
-    widget = PetWidget(_packs()["rita_umbral_rose"])
+    widget = PetWidget(
+        _packs()["rita_umbral_rose"],
+        action_overrides={
+            "low_on_enter": ["sit_transition"],
+            "low_idle": ["sit"],
+            "click": ["click"],
+        },
+    )
     widget.set_state(PetState.LOW)
     _finish_frames(widget, PetActivity.SIT_TRANSITION)
     assert widget.play_click_reaction(now=10.0)
@@ -73,7 +80,10 @@ def test_click_animation_returns_to_low_sit(app) -> None:
 
 
 def test_sleep_react_returns_to_sleep(app) -> None:
-    widget = PetWidget(_packs()["rita_umbral_rose"])
+    widget = PetWidget(
+        _packs()["rita_umbral_rose"],
+        action_overrides={"empty_idle": ["sleep"], "click": ["sleep_react"]},
+    )
     widget.set_state(PetState.EMPTY)
     assert widget.play_click_reaction(now=10.0)
     assert widget.activity is PetActivity.SLEEP_REACT
@@ -98,12 +108,13 @@ def test_random_animation_never_overrides_quota_state(app, state: PetState) -> N
     expected = widget.activity
     widget._run_idle_action()
     assert widget.activity is expected
-    expected_action = PetActivity.SIT_TRANSITION if state is PetState.LOW else None
-    assert widget._action_activity is expected_action
 
 
 def test_recovered_animation_returns_to_normal_after_declared_duration(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
+    window.pet.set_action_overrides(
+        {"critical_idle": ["critical"], "recovered": ["stretch"]}
+    )
     window.set_snapshot(
         parse_rate_limits({"rateLimits": {"primary": {"usedPercent": 95}}})
     )
@@ -186,6 +197,7 @@ def test_skin_change_releases_old_frame_cache(app) -> None:
 
 def test_animation_end_restores_pet_geometry(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
+    window.pet.set_action_overrides({"click": ["click"]})
     before = (window.geometry(), window.pet_anchor)
     assert window.pet.play_click_reaction(now=10.0)
     _finish_frames(window.pet, PetActivity.CLICK)
@@ -194,6 +206,7 @@ def test_animation_end_restores_pet_geometry(app, tmp_path: Path) -> None:
 
 def test_click_animation_keeps_bubble_position(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
+    window.pet.set_action_overrides({"click": ["click"]})
     before = window.bubble.pos()
     assert window.pet.play_click_reaction(now=10.0)
     for _ in range(window.pet.skin.asset_for(PetActivity.CLICK).frame_count):
@@ -203,7 +216,9 @@ def test_click_animation_keeps_bubble_position(app, tmp_path: Path) -> None:
 
 
 def test_continuous_hover_does_not_restart_sequence(app) -> None:
-    widget = PetWidget(_packs()["rita_umbral_rose"])
+    widget = PetWidget(
+        _packs()["rita_umbral_rose"], action_overrides={"hover": ["hover"]}
+    )
     assert widget.play_hover_reaction(now=10.0)
     widget._advance_frame()
     frame = widget._frame_index
@@ -226,7 +241,10 @@ def test_frame_durations_override_fps_and_preserve_hold_frames(app) -> None:
 
 
 def test_sit_transition_finishes_in_sit(app) -> None:
-    widget = PetWidget(_packs()["rita_umbral_rose"])
+    widget = PetWidget(
+        _packs()["rita_umbral_rose"],
+        action_overrides={"low_on_enter": ["sit_transition"], "low_idle": ["sit"]},
+    )
     widget.set_state(PetState.LOW)
     assert widget.activity is PetActivity.SIT_TRANSITION
     assert widget._action_activity is PetActivity.SIT_TRANSITION

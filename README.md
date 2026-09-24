@@ -14,12 +14,12 @@
 - 拖动、锁定位置、位置持久化、跨屏边界钳制、透明度
 - NORMAL / LOW / CRITICAL / EMPTY / RECOVERED 状态
 - Rita / Umbral Rose 统一配色、轻量悬浮额度气泡与淡入淡出
-- 默认 idle 完全静止；Hover、Click、Blink、Wave、Tidy Hair、Sleep React 与 Sit Transition 使用真实局部姿态逐帧动画，并以 45～150 秒随机间隔偶发 blink / wave / tidy hair
+- 默认 idle 完全静止；Hover、Click、随机待机及额度状态通过 Skin 可配置的动作池选择 Blink、Wave、Tidy Hair、Sleep React、Sit Transition 或无反应，不再固定绑定单一动作
 - 人物与额度气泡是两个独立透明窗口；气泡显隐不会改变人物屏幕 anchor，并会按左右可用空间智能展开
 - 运行时按 sprite alpha 边界裁剪人物窗口，仅保留 4 px 安全边距，点击区域不再包含旧画布的大块透明区
 - 独立 Skin Pack：手动/随机换肤、热扫描、缺帧 fallback、无重复随机
 - 自动换肤：每 6/12/24/48 小时，或每天本地固定时间；重启后继续原计时
-- 右键菜单与系统托盘：刷新、皮肤、额度显隐、置顶、锁定、透明度、刷新间隔、开机启动、桌面快捷方式、日志、关于、退出
+- 右键菜单与系统托盘：刷新、皮肤、互动/动作设置、额度显隐、置顶、锁定、透明度、刷新间隔、开机启动、桌面快捷方式、日志、关于、退出
 - HKCU 用户级开机启动，不需要管理员权限
 - 用户级桌面快捷方式创建/更新/删除；自动指向当前冻结版或 Portable EXE，不硬编码用户目录
 - 60 秒默认轮询、事件触发刷新、失败退避、自动恢复、进程退出清理
@@ -84,7 +84,7 @@ py -3.12 -m venv .venv
 %LOCALAPPDATA%\CodexUsagePet\logs\app.log
 ```
 
-日志单文件最大约 1 MB，保留 3 个备份。配置只包含窗口位置、透明度、刷新间隔、置顶、锁定、额度显隐、皮肤计时与开机启动偏好。
+日志单文件最大约 1 MB，保留 3 个备份。配置只包含窗口位置、透明度、刷新间隔、置顶、锁定、额度显隐、皮肤计时、各 Skin 的动作启用项与开机启动偏好。
 
 ## Skin Pack
 
@@ -109,6 +109,23 @@ py -3.12 -m venv .venv
   "preferred_height": 220,
   "anchor_x": 0,
   "anchor_y": -3,
+  "action_policy": {
+    "idle_trigger_probability": 0.62,
+    "idle_interval_min": 45,
+    "idle_interval_max": 150,
+    "avoid_immediate_repeat": true,
+    "history_size": 3,
+    "pools": {
+      "hover": [
+        {"action": "hover", "weight": 45, "cooldown": [3000, 8000], "allowed_states": ["normal"]},
+        {"action": "blink", "weight": 35, "cooldown": [5000, 15000], "allowed_states": ["normal"]},
+        {"action": "none", "weight": 20, "allowed_states": ["normal"]}
+      ],
+      "low_on_enter": [{"action": "sit_transition", "weight": 80, "allowed_states": ["low"]}],
+      "low_idle": [{"action": "sit", "weight": 100, "allowed_states": ["low"]}],
+      "low_on_exit": [{"action": "none", "weight": 100, "allowed_states": ["low"]}]
+    }
+  },
   "theme": {
     "panel": "#24222B",
     "progress_track": "#35313A",
@@ -154,6 +171,14 @@ py -3.12 -m venv .venv
 }
 ```
 
+### 动作池与角色性格
+
+动作选择链路为“事件/状态 → Skin Policy → 用户启用项 → 状态、素材与 cooldown 过滤 → 加权选择 → 动画播放器”。支持 `hover`、`click`、`idle_random`、`recovered`、`normal_idle`，以及 LOW / CRITICAL / EMPTY 各自的 `*_on_enter`、`*_idle`、`*_on_exit`。`none` 是合法候选，表示本次保持安静；过滤后为空也会安全回到基础姿态。
+
+`cooldown` 使用毫秒，可写单个数或 `[min, max]`；`allowed_states` 限制动作出现的额度状态。最近 3 次已播放动作只保留在当前运行 session 中，默认避免立即重复；候选只有一个时仍允许重复。系统状态动作、Click、Hover、随机待机和 idle 的优先级依次降低，优先级只决定哪类事件可播放，具体动作仍由池选择。
+
+用户可右键选择“互动设置 → 动作设置…”，分别启用或禁用当前 Skin 的 Hover、Click、随机待机、LOW、CRITICAL、EMPTY 与 RECOVERED 候选，也可恢复当前皮肤默认值。覆盖配置按 Skin ID 独立保存，不改写 `skin.json`。Skin 可在 `states` 中声明新的动作 ID，并在池中直接引用；没有对应素材的候选会自动过滤。
+
 动画可使用连续帧数或显式 `frames` 坐标，并声明 `fps`、`frame_durations_ms`、`loop`、`cooldown` 和 `interruptible`。逐帧时长存在时优先于 FPS，可用于准备、停顿和恢复节奏。播放器首次使用时缓存帧，切换皮肤会释放旧帧缓存；idle 没有逐帧定时器。`preferred_width` / `preferred_height` 控制角色绘制尺寸；`anchor_x` / `anchor_y` 和状态级 offset 用于对齐脚底及不同姿态的视觉重心。所有姿态共享同一个脚底中心屏幕 anchor，同组动画按全部帧的 alpha 并集固定窗口尺寸。除 idle 外的状态都是可选项；缺少互动动画时保持基础姿态，critical 仍优先回退 sit，再回退 idle。
 
 内置 Rita 动画参数：
@@ -168,7 +193,7 @@ py -3.12 -m venv .venv
 | Sleep React | 8 | 20 | 2400 ms | 否 |
 | Sit Transition | 10 | 24 | 1600 ms | 否 |
 
-LOW 会先播放真实的 Sit Transition 并停在它的最终坐姿；CRITICAL 和 EMPTY 使用专门绘制的疲惫与睡眠姿态，不通过缩放、旋转或整图平移伪造动作。点击 EMPTY 中的角色会播放 Sleep React，然后回到 sleep。
+内置 Umbral Rose 的 LOW 默认偏向 Sit Transition 与坐姿，但这些只是可替换的 Skin 默认策略；CRITICAL、EMPTY 与 RECOVERED 同样经各自动作池选择。CRITICAL 和 EMPTY 的内置候选使用专门绘制的疲惫与睡眠姿态，不通过缩放、旋转或整图平移伪造动作；EMPTY 点击池可选择 Sleep React 后回到持续姿态。
 
 内置皮肤：
 
@@ -197,7 +222,7 @@ $env:QT_QPA_PLATFORM = "offscreen"
 .\.venv\Scripts\python.exe main.py --smoke-test
 ```
 
-测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置损坏、日志凭据脱敏、开机启动、Skin Pack 扫描与 fallback、手动/随机/定时换肤、重启续时、固定时间、热加载、状态保持、alpha 边界裁剪、逐帧顺序与时长优先级、hold frame、Sit/Sleep 回落、帧缓存与释放、互动 cooldown、动作优先级、每帧 anchor、气泡跟随，以及反复显隐时人物 0 像素漂移。
+测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置损坏、日志凭据脱敏、开机启动、Skin Pack 扫描与 fallback、手动/随机/定时换肤、重启续时、固定时间、热加载、自定义动作 ID、动作池权重/过滤/cooldown/防重复/none/用户覆盖、状态进入/持续/退出、动作优先级、状态保持、alpha 边界裁剪、逐帧顺序与时长优先级、hold frame、帧缓存与释放、每帧 anchor、气泡跟随，以及反复显隐时人物 0 像素漂移。
 
 ## 打包
 

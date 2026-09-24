@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from codex_usage_pet.pet.animator import PetActivity
+from codex_usage_pet.pet.action_policy import ActionPolicy, default_action_policy
 
 DEFAULT_SKIN_ID = "rita_umbral_rose"
 
@@ -26,7 +27,7 @@ class SkinTheme:
 
 @dataclass(frozen=True, slots=True)
 class SkinStateAsset:
-    activity: PetActivity
+    activity: PetActivity | str
     path: Path
     cell: tuple[int, int] | None = None
     grid: tuple[int, int] = (1, 1)
@@ -38,7 +39,7 @@ class SkinStateAsset:
     loop: bool = False
     cooldown_ms: int = 0
     interruptible: bool = True
-    fallback_from: PetActivity | None = None
+    fallback_from: PetActivity | str | None = None
 
     @property
     def frame_count(self) -> int:
@@ -76,15 +77,43 @@ class SkinPack:
     root: Path
     preview_path: Path | None
     theme: SkinTheme
-    states: dict[PetActivity, SkinStateAsset] = field(default_factory=dict)
+    states: dict[PetActivity | str, SkinStateAsset] = field(default_factory=dict)
+    action_policy: ActionPolicy = field(default_factory=default_action_policy)
     preferred_width: int = 222
     preferred_height: int = 222
     anchor_x: float = 0.0
     anchor_y: float = -3.0
 
-    def asset_for(self, activity: PetActivity) -> SkinStateAsset:
-        return self.states[activity]
+    def asset_for(self, activity: PetActivity | str) -> SkinStateAsset:
+        return self.states[self.resolve_activity(activity)]
 
-    def has_explicit_state(self, activity: PetActivity) -> bool:
-        asset = self.states.get(activity)
+    def has_explicit_state(self, activity: PetActivity | str) -> bool:
+        key = self.resolve_activity(activity, required=False)
+        asset = self.states.get(key) if key is not None else None
         return asset is not None and asset.fallback_from is None
+
+    @property
+    def supported_actions(self) -> set[str]:
+        return {
+            item.value if isinstance(item, PetActivity) else item
+            for item, asset in self.states.items()
+            if asset.fallback_from is None
+        }
+
+    def resolve_activity(
+        self, activity: PetActivity | str, *, required: bool = True
+    ) -> PetActivity | str | None:
+        if isinstance(activity, PetActivity) and activity in self.states:
+            return activity
+        value = activity.value if isinstance(activity, PetActivity) else str(activity)
+        try:
+            known = PetActivity(value)
+        except ValueError:
+            known = None
+        if known is not None and known in self.states:
+            return known
+        if value in self.states:
+            return value
+        if required:
+            raise KeyError(value)
+        return None

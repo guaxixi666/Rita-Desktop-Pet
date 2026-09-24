@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +30,7 @@ class AppSettings:
     auto_skin_fixed_time: str = "08:00"
     last_skin_change: str | None = None
     random_skin_no_repeat: bool = True
+    action_pool_overrides: dict[str, dict[str, list[str]]] = field(default_factory=dict)
 
     def normalize(self) -> "AppSettings":
         self.opacity = max(0.4, min(1.0, float(self.opacity)))
@@ -53,6 +54,19 @@ class AppSettings:
         if self.last_skin_change is not None and not isinstance(self.last_skin_change, str):
             self.last_skin_change = None
         self.random_skin_no_repeat = bool(self.random_skin_no_repeat)
+        normalized_overrides: dict[str, dict[str, list[str]]] = {}
+        if isinstance(self.action_pool_overrides, dict):
+            for skin_id, raw_pools in self.action_pool_overrides.items():
+                if not isinstance(raw_pools, dict):
+                    continue
+                pools: dict[str, list[str]] = {}
+                for event, raw_actions in raw_pools.items():
+                    if not isinstance(raw_actions, list):
+                        continue
+                    actions = [str(action).strip().lower() for action in raw_actions]
+                    pools[str(event)] = list(dict.fromkeys(action for action in actions if action))
+                normalized_overrides[str(skin_id)] = pools
+        self.action_pool_overrides = normalized_overrides
         if not isinstance(self.window_x, int):
             self.window_x = None
         if not isinstance(self.window_y, int):

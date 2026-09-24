@@ -24,6 +24,53 @@
     "border": "#87364E",
     "decorator": "✿"
   },
+  "action_policy": {
+    "idle_trigger_probability": 0.62,
+    "idle_interval_min": 45,
+    "idle_interval_max": 150,
+    "avoid_immediate_repeat": true,
+    "history_size": 3,
+    "pools": {
+      "hover": [
+        {"action": "hover", "weight": 45, "cooldown": [3000, 8000], "allowed_states": ["normal"]},
+        {"action": "blink", "weight": 35, "cooldown": [5000, 15000], "allowed_states": ["normal"]},
+        {"action": "none", "weight": 20, "allowed_states": ["normal"]}
+      ],
+      "click": [
+        {"action": "click", "weight": 40, "cooldown": [1000, 2500], "allowed_states": ["normal", "low"]},
+        {"action": "wave", "weight": 20, "cooldown": [30000, 90000], "allowed_states": ["normal", "low"]},
+        {"action": "stretch", "weight": 30, "cooldown": [60000, 150000], "allowed_states": ["normal", "low"]},
+        {"action": "sleep_react", "weight": 80, "cooldown": [2000, 5000], "allowed_states": ["empty"]},
+        {"action": "none", "weight": 10, "allowed_states": ["normal", "low", "empty"]}
+      ],
+      "idle_random": [
+        {"action": "blink", "weight": 40, "cooldown": [5000, 15000], "allowed_states": ["normal"]},
+        {"action": "wave", "weight": 12, "cooldown": [60000, 180000], "allowed_states": ["normal"]},
+        {"action": "stretch", "weight": 33, "cooldown": [90000, 240000], "allowed_states": ["normal"]},
+        {"action": "none", "weight": 15, "allowed_states": ["normal"]}
+      ],
+      "recovered": [
+        {"action": "wave", "weight": 30, "allowed_states": ["recovered"]},
+        {"action": "hover", "weight": 20, "allowed_states": ["recovered"]},
+        {"action": "stretch", "weight": 45, "allowed_states": ["recovered"]},
+        {"action": "none", "weight": 5, "allowed_states": ["recovered"]}
+      ],
+      "low_on_enter": [
+        {"action": "sit_transition", "weight": 80, "allowed_states": ["low"]},
+        {"action": "none", "weight": 20, "allowed_states": ["low"]}
+      ],
+      "low_idle": [
+        {"action": "sit", "weight": 90, "allowed_states": ["low"]},
+        {"action": "idle", "weight": 10, "allowed_states": ["low"]}
+      ],
+      "low_on_exit": [{"action": "none", "weight": 100, "allowed_states": ["low"]}],
+      "critical_idle": [
+        {"action": "critical", "weight": 90, "allowed_states": ["critical"]},
+        {"action": "sit", "weight": 10, "allowed_states": ["critical"]}
+      ],
+      "empty_idle": [{"action": "sleep", "weight": 100, "allowed_states": ["empty"]}]
+    }
+  },
   "states": {
     "idle": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [0, 0], "offset_x": -37},
     "blink": {"source": "animations/blink.png", "grid": [3, 2], "frames": 6, "fps": 20, "frame_durations_ms": [150, 70, 70, 110, 70, 130], "loop": false, "cooldown": 1500, "interruptible": true},
