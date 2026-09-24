@@ -18,6 +18,7 @@ from codex_usage_pet.services.settings import AppSettings, SettingsStore
 from codex_usage_pet.services.startup import StartupManager
 from codex_usage_pet.skins.loader import SkinRepository
 from codex_usage_pet.ui.action_settings import ActionSettingsDialog
+from codex_usage_pet.ui.localization import action_name, tr
 from codex_usage_pet.ui.pet_window import PetWindow
 from codex_usage_pet.ui.tray import TrayIcon
 
@@ -184,7 +185,7 @@ def test_menu_tray_screen_and_dpi_basics(app, tmp_path: Path) -> None:
     labels = {action.text() for action in menu.actions() if action.text()}
     assert {
         "刷新额度",
-        "显示额度",
+        "显示额度信息",
         "始终置顶",
         "锁定位置",
         "互动设置",
@@ -259,6 +260,39 @@ def test_action_settings_user_override_and_restore_defaults(app, tmp_path: Path)
     dialog.restore_defaults()
     assert dialog.selected_overrides() == {}
     dialog.deleteLater()
+
+
+def test_action_and_event_ids_are_localized_with_safe_fallback() -> None:
+    assert action_name("tidy_hair") == "整理头发"
+    assert tr("event.hover") == "鼠标悬停"
+    assert tr("missing.key") == "missing.key"
+
+
+def test_action_settings_use_chips_and_keep_english_ids(app) -> None:
+    repository = SkinRepository([Path(__file__).parents[1] / "skins"])
+    skin = repository.scan()["rita_umbral_rose"]
+    dialog = ActionSettingsDialog(skin, {"hover": ["blink"]})
+    hover = dialog._cards[0]
+    chip = next(item for item in hover._chips["hover"] if item.action_id == "blink")
+    assert chip.isCheckable()
+    assert "眨眼" in chip.text()
+    assert dialog.selected_overrides() == {"hover": ["blink"]}
+    dialog.deleteLater()
+
+
+def test_quiet_mode_blocks_hover_and_idle_without_rewriting_overrides(app, tmp_path: Path) -> None:
+    path = tmp_path / "settings.json"
+    settings = AppSettings(quiet_mode=True, action_pool_overrides={"rita_umbral_rose": {"hover": ["hover"]}})
+    window = PetWindow(settings, SettingsStore(path), StartupManager(registry=None))
+    assert not window.pet.play_hover_reaction(now=10.0)
+    before = dict(window.pet.action_selector.overrides)
+    window.pet._run_idle_action()
+    assert window.pet.action_selector.overrides == before
+    window.pet.set_quiet_mode(False)
+    assert window.pet.play_hover_reaction(now=20.0)
+    window.save_settings()
+    assert SettingsStore(path).load().quiet_mode is True
+    window.deleteLater()
 
 
 def test_action_settings_are_saved_per_skin(app, tmp_path: Path) -> None:

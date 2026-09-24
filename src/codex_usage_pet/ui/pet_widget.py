@@ -86,12 +86,20 @@ class PetWidget(QWidget):
         )
         self._pixmaps: dict[Path, QPixmap] = {}
         self._frame_cache: dict[tuple[Path, tuple[int, int], tuple[int, int]], QPixmap] = {}
+        self._frame_bounds: dict[tuple[Path, tuple[int, int], tuple[int, int]], QRect] = {}
+        self._frame_anchors: dict[
+            tuple[Path, tuple[int, int], tuple[int, int]], QPointF
+        ] = {}
+        self._frame_targets: dict[
+            tuple[Path, tuple[int, int], tuple[int, int]], QRectF
+        ] = {}
         self._bounds: dict[tuple[Path, tuple[tuple[int, int], ...], tuple[int, int]], QRect] = {}
         self._current_frame_pixmap = QPixmap()
         self._source = QRectF()
         self._target = QRectF()
         self._full_target = QRectF()
         self._visual_logical_origin = QPointF()
+        self._skin_union_bounds = QRectF()
         self._anchor_offset = QPointF()
         self._left_extent = self.CANVAS_WIDTH / 2
         self._right_extent = self.CANVAS_WIDTH / 2
@@ -99,6 +107,7 @@ class PetWidget(QWidget):
         self._action_priority = 0
         self._pending_system_decisions: list[tuple[ActionDecision, PetState]] = []
         self._frame_index = 0
+        self._quiet_mode = False
 
         self._opacity_effect = QGraphicsOpacityEffect(self)
         self._opacity_effect.setOpacity(1.0)
@@ -154,6 +163,9 @@ class PetWidget(QWidget):
         self.action_selector.set_overrides(action_overrides)
         self._pixmaps = {asset.path: QPixmap(str(asset.path)) for asset in skin.states.values()}
         self._frame_cache.clear()
+        self._frame_bounds.clear()
+        self._frame_anchors.clear()
+        self._frame_targets.clear()
         self._bounds.clear()
         self._calculate_visual_envelope()
         # Bounds stay cached, but decoded frame crops are populated lazily and
@@ -169,6 +181,9 @@ class PetWidget(QWidget):
 
     def set_action_overrides(self, overrides: dict[str, list[str]] | None) -> None:
         self.action_selector.set_overrides(overrides)
+
+    def set_quiet_mode(self, enabled: bool) -> None:
+        self._quiet_mode = bool(enabled)
 
     def set_state(self, state: PetState) -> None:
         previous = self.state
@@ -205,6 +220,8 @@ class PetWidget(QWidget):
         self.update()
 
     def play_hover_reaction(self, now: float | None = None) -> bool:
+        if getattr(self, "_quiet_mode", False):
+            return False
         decision = self._choose(ActionEvent.HOVER, self.state, now=now)
         return self._start_decision(decision, self.PRIORITY_HOVER, now)
 
@@ -281,7 +298,11 @@ class PetWidget(QWidget):
 
     def _run_idle_action(self) -> None:
         try:
-            if self.state is PetState.NORMAL and self._action_activity is None:
+            if (
+                not getattr(self, "_quiet_mode", False)
+                and self.state is PetState.NORMAL
+                and self._action_activity is None
+            ):
                 if self._rng.random() < self.action_selector.policy.idle_trigger_probability:
                     decision = self._choose(ActionEvent.IDLE_RANDOM, self.state)
                     self._start_decision(decision, self.PRIORITY_IDLE)
@@ -346,73 +367,26 @@ class PetWidget(QWidget):
 
     def _update_tooltip(self) -> None:
         activity = self.activity.value if isinstance(self.activity, PetActivity) else self.activity
-        self.setToolTip(f"{self.skin.name} · {self.state.value} · {activity}")
+        from .localization import action_name, state_name
+
+        self.setToolTip(f"{self.skin.name} · {state_name(self.state.value)} · {action_name(activity)}")
 
     def _prepare_visual(self) -> None:
         asset = self.skin.asset_for(self.activity)
         pixmap = self._frame_pixmap(asset, asset.cell_at(self._frame_index))
         self._current_frame_pixmap = pixmap
         if pixmap is None or pixmap.isNull():
-            old_size = self.size()
-            self.setFixedSize(96, 96)
             self._source = QRectF()
-            self._target = QRectF(self.SAFE_PADDING, self.SAFE_PADDING, 88, 88)
-            self._anchor_offset = QPointF(48, 92)
-            if self.size() != old_size:
-                self.visual_bounds_changed.emit()
+            self._target = QRectF()
             return
-
-        cell_width = pixmap.width()
-        cell_height = pixmap.height()
-        frames = asset.frames or (asset.cell or (0, 0),)
-        key = (asset.path, frames, asset.grid)
-        bounds = self._bounds.get(key)
-        if bounds is None:
-            bounds = self._animation_bounds(asset)
-            self._bounds[key] = bounds
-
-        scale_x = self.skin.preferred_width / cell_width
-        scale_y = self.skin.preferred_height / cell_height
-        full_left = (
-            (self.CANVAS_WIDTH - self.skin.preferred_width) / 2
-            + self.skin.anchor_x
-            + asset.offset_x
+        frame_key = (asset.path, asset.cell_at(self._frame_index), asset.grid)
+        logical_target = self._frame_targets[frame_key]
+        self._source = QRectF(0, 0, pixmap.width(), pixmap.height())
+        self._target = logical_target.translated(
+            -self._skin_union_bounds.left() + self.SAFE_PADDING,
+            -self._skin_union_bounds.top() + self.SAFE_PADDING,
         )
-        full_top = (
-            self.CANVAS_HEIGHT
-            - self.skin.preferred_height
-            + self.skin.anchor_y
-            + asset.offset_y
-        )
-        logical_left = full_left + bounds.x() * scale_x
-        logical_top = full_top + bounds.y() * scale_y
-        visual_width = max(1.0, bounds.width() * scale_x)
-        visual_height = max(1.0, bounds.height() * scale_y)
-        widget_width = math.ceil(visual_width) + self.SAFE_PADDING * 2
-        widget_height = math.ceil(visual_height) + self.SAFE_PADDING * 2
-        old_size = self.size()
-        old_anchor = QPointF(self._anchor_offset)
-        self.setFixedSize(widget_width, widget_height)
-        self._source = QRectF(
-            bounds.x(),
-            bounds.y(),
-            bounds.width(),
-            bounds.height(),
-        )
-        self._target = QRectF(
-            self.SAFE_PADDING,
-            self.SAFE_PADDING,
-            visual_width,
-            visual_height,
-        )
-        self._full_target = QRectF(full_left, full_top, self.skin.preferred_width, self.skin.preferred_height)
-        self._visual_logical_origin = QPointF(logical_left, logical_top)
-        self._anchor_offset = QPointF(
-            self.CANVAS_WIDTH / 2 - logical_left + self.SAFE_PADDING,
-            self.CANVAS_HEIGHT - logical_top + self.SAFE_PADDING,
-        )
-        if self.size() != old_size or self._anchor_offset != old_anchor:
-            self.visual_bounds_changed.emit()
+        self._full_target = QRectF(self._target)
 
     def _frame_pixmap(self, asset: SkinStateAsset, cell: tuple[int, int]) -> QPixmap:
         key = (asset.path, cell, asset.grid)
@@ -452,34 +426,99 @@ class PetWidget(QWidget):
         return union
 
     def _calculate_visual_envelope(self) -> None:
-        left_extent = right_extent = 0.0
-        seen: set[tuple[Path, tuple[tuple[int, int], ...], tuple[int, int], float, float]] = set()
+        union = QRectF()
+        seen: set[tuple[Path, tuple[int, int], tuple[int, int], float, float]] = set()
         for asset in self.skin.states.values():
             frames = asset.frames or (asset.cell or (0, 0),)
-            key = (asset.path, frames, asset.grid, asset.offset_x, asset.offset_y)
-            if key in seen:
-                continue
-            seen.add(key)
             bounds_key = (asset.path, frames, asset.grid)
-            bounds = self._bounds.get(bounds_key)
-            if bounds is None:
-                bounds = self._animation_bounds(asset)
-                self._bounds[bounds_key] = bounds
-            sample = self._frame_pixmap(asset, frames[0])
-            if sample.isNull():
-                continue
-            scale_x = self.skin.preferred_width / sample.width()
-            full_left = (
-                (self.CANVAS_WIDTH - self.skin.preferred_width) / 2
-                + self.skin.anchor_x
-                + asset.offset_x
-            )
-            logical_left = full_left + bounds.left() * scale_x
-            logical_right = full_left + (bounds.right() + 1) * scale_x
-            left_extent = max(left_extent, self.CANVAS_WIDTH / 2 - logical_left)
-            right_extent = max(right_extent, logical_right - self.CANVAS_WIDTH / 2)
-        self._left_extent = max(1.0, left_extent)
-        self._right_extent = max(1.0, right_extent)
+            animation_union = QRect()
+            for cell in frames:
+                key = (asset.path, cell, asset.grid, asset.offset_x, asset.offset_y)
+                if key in seen:
+                    continue
+                seen.add(key)
+                frame = self._frame_pixmap(asset, cell)
+                if frame.isNull():
+                    continue
+                frame_key = (asset.path, cell, asset.grid)
+                bounds = alpha_bounding_rect(frame.toImage(), 15)
+                anchor = self._bottom_center_anchor(frame.toImage(), bounds)
+                self._frame_bounds[frame_key] = bounds
+                self._frame_anchors[frame_key] = anchor
+                scale_x = self.skin.preferred_width / frame.width()
+                scale_y = self.skin.preferred_height / frame.height()
+                origin = QPointF(
+                    self.CANVAS_WIDTH / 2
+                    + self.skin.anchor_x
+                    + asset.offset_x
+                    - anchor.x() * scale_x,
+                    self.CANVAS_HEIGHT
+                    + self.skin.anchor_y
+                    + asset.offset_y
+                    - anchor.y() * scale_y,
+                )
+                target = QRectF(
+                    origin.x(), origin.y(), self.skin.preferred_width, self.skin.preferred_height
+                )
+                self._frame_targets[frame_key] = target
+                logical_bounds = QRectF(
+                    origin.x() + bounds.x() * scale_x,
+                    origin.y() + bounds.y() * scale_y,
+                    bounds.width() * scale_x,
+                    bounds.height() * scale_y,
+                )
+                union = logical_bounds if union.isNull() else union.united(logical_bounds)
+                animation_union = (
+                    bounds if animation_union.isNull() else animation_union.united(bounds)
+                )
+            self._bounds[bounds_key] = animation_union
+        if union.isNull():
+            union = QRectF(0, 0, 96, 96)
+        self._skin_union_bounds = union
+        self._visual_logical_origin = union.topLeft()
+        old_size = self.size()
+        old_anchor = QPointF(self._anchor_offset)
+        self.setFixedSize(
+            math.ceil(union.width()) + self.SAFE_PADDING * 2,
+            math.ceil(union.height()) + self.SAFE_PADDING * 2,
+        )
+        self._anchor_offset = QPointF(
+            self.CANVAS_WIDTH / 2 - union.left() + self.SAFE_PADDING,
+            self.CANVAS_HEIGHT - union.top() + self.SAFE_PADDING,
+        )
+        self._left_extent = max(1.0, self.CANVAS_WIDTH / 2 - union.left())
+        self._right_extent = max(1.0, union.right() - self.CANVAS_WIDTH / 2)
+        if self.size() != old_size or self._anchor_offset != old_anchor:
+            self.visual_bounds_changed.emit()
+
+    @staticmethod
+    def _bottom_center_anchor(image: QImage, bounds: QRect) -> QPointF:
+        """Return a stable ground-contact anchor for one transparent frame."""
+        if image.isNull() or bounds.isNull():
+            return QPointF(image.width() / 2, image.height())
+        rgba = image.convertToFormat(QImage.Format.Format_RGBA8888)
+        data = rgba.constBits()
+        stride = rgba.bytesPerLine()
+        band_height = max(6, round(bounds.height() * 0.05))
+        first_y = max(bounds.top(), bounds.bottom() - band_height + 1)
+        xs: list[int] = []
+        for y in range(first_y, bounds.bottom() + 1):
+            row = y * stride
+            for x in range(bounds.left(), bounds.right() + 1):
+                if data[row + x * 4 + 3] > 15:
+                    xs.append(x)
+        xs.sort()
+        center_x = float(xs[len(xs) // 2]) if xs else bounds.center().x()
+        return QPointF(center_x, bounds.bottom() + 1)
+
+    @property
+    def skin_union_bounds(self) -> QRectF:
+        return QRectF(self._skin_union_bounds)
+
+    @property
+    def current_foot_anchor(self) -> QPointF:
+        """Current normalized foot anchor in widget coordinates (QA hook)."""
+        return QPointF(self._anchor_offset.x(), self._anchor_offset.y() + self.skin.anchor_y)
 
     def _start_frame_timer(self) -> None:
         asset = self.skin.asset_for(self.activity)
@@ -515,7 +554,7 @@ class PetWidget(QWidget):
         if pixmap is None or pixmap.isNull():
             painter.setPen(self.skin.theme.low)
             painter.setFont(theme.font(10))
-            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "Skin unavailable")
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "皮肤素材不可用")
             return
         painter.save()
         if self.state is PetState.EMPTY:

@@ -29,7 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     logger = logging.getLogger(__name__)
     logger.info("Codex Usage Pet starting; log=%s", log_path)
     app = QApplication(sys.argv[:1])
-    app.setApplicationName("Codex Usage Pet")
+    app.setApplicationName("Codex 额度桌宠")
     app.setApplicationVersion("0.1.0")
     app.setQuitOnLastWindowClosed(False)
 

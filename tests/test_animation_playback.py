@@ -7,7 +7,7 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtCore import QPoint
+from PySide6.QtCore import QPoint, QPointF
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -150,6 +150,84 @@ def test_every_animation_frame_keeps_screen_anchor(app, tmp_path: Path, activity
         assert window.pet_anchor == before
         window.pet._advance_frame()
     assert window.pet_anchor == before
+
+
+@pytest.mark.parametrize(
+    "activity",
+    [
+        PetActivity.HOVER,
+        PetActivity.CLICK,
+        PetActivity.WAVE,
+        PetActivity.SIT_TRANSITION,
+        PetActivity.STRETCH,
+        PetActivity.SLEEP_REACT,
+    ],
+)
+def test_animation_playback_keeps_window_geometry_size_and_foot_anchor(
+    app, tmp_path: Path, activity: PetActivity
+) -> None:
+    window = _window(tmp_path)
+    if activity is PetActivity.SLEEP_REACT:
+        window.pet.set_state(PetState.EMPTY)
+    before = (window.pos(), window.geometry(), window.size(), window.pet.size())
+    foot = QPointF(window.pet.current_foot_anchor)
+    assert window.pet._start_action(activity)
+    asset = window.pet.skin.asset_for(activity)
+    for _ in range(asset.frame_count):
+        assert (window.pos(), window.geometry(), window.size(), window.pet.size()) == before
+        assert window.pet.current_foot_anchor == foot
+        window.pet._advance_frame()
+    assert (window.pos(), window.geometry(), window.size(), window.pet.size()) == before
+    assert window.pet.current_foot_anchor == foot
+
+
+def test_animation_playback_never_calls_adjust_size(app, tmp_path: Path) -> None:
+    window = _window(tmp_path)
+    calls = 0
+
+    def forbidden() -> None:
+        nonlocal calls
+        calls += 1
+
+    window.pet.adjustSize = forbidden  # type: ignore[method-assign]
+    assert window.pet._start_action(PetActivity.WAVE)
+    _finish_frames(window.pet, PetActivity.WAVE)
+    assert calls == 0
+
+
+def test_all_animation_frames_share_one_logical_canvas(app) -> None:
+    widget = PetWidget(_packs()["rita_umbral_rose"])
+    initial_size = widget.size()
+    initial_union = widget.skin_union_bounds
+    for activity in widget.skin.states:
+        asset = widget.skin.asset_for(activity)
+        widget.activity = activity
+        for index in range(asset.frame_count):
+            widget._frame_index = index
+            widget._prepare_visual()
+            assert widget.size() == initial_size
+            assert widget.skin_union_bounds == initial_union
+
+
+def test_normalized_frame_foot_anchor_drift_is_zero(app) -> None:
+    widget = PetWidget(_packs()["rita_umbral_rose"])
+    expected = QPointF(widget.current_foot_anchor)
+    for activity in widget.skin.states:
+        asset = widget.skin.asset_for(activity)
+        widget.activity = activity
+        for index in range(asset.frame_count):
+            widget._frame_index = index
+            widget._prepare_visual()
+            key = (asset.path, asset.cell_at(index), asset.grid)
+            raw_anchor = widget._frame_anchors[key]
+            scale_x = widget.skin.preferred_width / widget._current_frame_pixmap.width()
+            scale_y = widget.skin.preferred_height / widget._current_frame_pixmap.height()
+            rendered = QPointF(
+                widget._target.left() + raw_anchor.x() * scale_x,
+                widget._target.top() + raw_anchor.y() * scale_y,
+            )
+            assert rendered.x() == pytest.approx(expected.x(), abs=0.001)
+            assert rendered.y() == pytest.approx(expected.y(), abs=0.001)
 
 
 def test_missing_animation_uses_static_fallback(app, tmp_path: Path) -> None:

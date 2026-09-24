@@ -17,6 +17,7 @@ from codex_usage_pet.skins.manager import SkinManager
 from codex_usage_pet.skins.models import SkinPack
 
 from .action_settings import ActionSettingsDialog
+from .localization import tr
 from .pet_widget import PetWidget
 from .theme import menu_style
 from .usage_bubble import UsageBubble
@@ -57,6 +58,7 @@ class PetWindow(QWidget):
             self,
             action_overrides=self._action_overrides_for(self.current_skin.id),
         )
+        self.pet.set_quiet_mode(settings.quiet_mode)
         self.pet.move(0, 0)
         self.resize(self.pet.size())
         self.bubble = UsageBubble()
@@ -87,8 +89,8 @@ class PetWindow(QWidget):
             window.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             window.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
             window.setWindowOpacity(settings.opacity)
-        self.setWindowTitle("Codex Usage Pet")
-        self.bubble.setWindowTitle("Codex Usage Pet · Usage")
+        self.setWindowTitle("Codex 额度桌宠")
+        self.bubble.setWindowTitle("Codex 额度桌宠 · 额度信息")
         for target in (self, self.pet, self.bubble, self.bubble.panel):
             target.installEventFilter(self)
         QTimer.singleShot(0, self._restore_position)
@@ -128,26 +130,26 @@ class PetWindow(QWidget):
     def build_menu(self) -> QMenu:
         menu = QMenu()
         menu.setStyleSheet(menu_style(self.current_skin.theme))
-        refresh = menu.addAction("刷新额度")
+        refresh = menu.addAction(tr("menu.refresh"))
         refresh.triggered.connect(self.refresh_requested.emit)
-        show_usage = menu.addAction("显示额度")
+        show_usage = menu.addAction(tr("menu.show_usage"))
         show_usage.setCheckable(True)
         show_usage.setChecked(self.settings.show_usage)
         show_usage.triggered.connect(self.set_usage_visible)
-        top = menu.addAction("始终置顶")
+        top = menu.addAction(tr("menu.always_on_top"))
         top.setCheckable(True)
         top.setChecked(self.settings.always_on_top)
         top.triggered.connect(self.set_always_on_top)
-        locked = menu.addAction("锁定位置")
+        locked = menu.addAction(tr("menu.lock_position"))
         locked.setCheckable(True)
         locked.setChecked(self.settings.locked)
         locked.triggered.connect(self.set_locked)
 
-        interaction_menu = menu.addMenu("互动设置")
-        actions = interaction_menu.addAction("动作设置…")
+        menu.addSeparator()
+        actions = menu.addAction(tr("menu.interactions"))
         actions.triggered.connect(self.open_action_settings)
 
-        skin_menu = menu.addMenu("皮肤")
+        skin_menu = menu.addMenu(tr("menu.skin"))
         current = skin_menu.addAction(f"当前：{self.current_skin.name}")
         current.setEnabled(False)
         skin_menu.addSeparator()
@@ -163,7 +165,7 @@ class PetWindow(QWidget):
         skin_menu.addSeparator()
         random_action = skin_menu.addAction("随机换一个")
         random_action.triggered.connect(self.random_skin)
-        auto_menu = skin_menu.addMenu("自动换肤")
+        auto_menu = skin_menu.addMenu(tr("menu.auto_skin"))
         auto_group = QActionGroup(auto_menu)
         auto_group.setExclusive(True)
         off = auto_menu.addAction("关闭")
@@ -205,7 +207,7 @@ class PetWindow(QWidget):
         open_skins = skin_menu.addAction("打开皮肤目录")
         open_skins.triggered.connect(self.open_skin_directory)
 
-        opacity_menu = menu.addMenu("透明度")
+        opacity_menu = menu.addMenu(tr("menu.opacity"))
         opacity_group = QActionGroup(opacity_menu)
         for percent in (60, 80, 100):
             action = opacity_menu.addAction(f"{percent}%")
@@ -213,7 +215,7 @@ class PetWindow(QWidget):
             action.setChecked(round(self.settings.opacity * 100) == percent)
             action.triggered.connect(lambda _checked=False, value=percent: self.set_opacity(value / 100))
             opacity_group.addAction(action)
-        interval_menu = menu.addMenu("刷新间隔")
+        interval_menu = menu.addMenu(tr("menu.refresh_interval"))
         interval_group = QActionGroup(interval_menu)
         for seconds, label in ((60, "1 分钟"), (120, "2 分钟"), (300, "5 分钟")):
             action = interval_menu.addAction(label)
@@ -221,26 +223,27 @@ class PetWindow(QWidget):
             action.setChecked(self.settings.refresh_interval == seconds)
             action.triggered.connect(lambda _checked=False, value=seconds: self.set_refresh_interval(value))
             interval_group.addAction(action)
-        startup = menu.addAction("开机启动")
+        menu.addSeparator()
+        startup = menu.addAction(tr("menu.startup"))
         startup.setCheckable(True)
         startup.setEnabled(self.startup.supported)
         startup.setChecked(self.startup.is_enabled())
         startup.triggered.connect(self.set_startup_enabled)
-        create_shortcut = menu.addAction("创建桌面快捷方式")
+        create_shortcut = menu.addAction(tr("menu.create_shortcut"))
         # Keep this enabled when a link already exists so a moved portable
         # build can update the same file to its current executable path.
         create_shortcut.setEnabled(self.shortcuts.supported)
         create_shortcut.triggered.connect(self.create_desktop_shortcut)
-        delete_shortcut = menu.addAction("删除桌面快捷方式")
+        delete_shortcut = menu.addAction(tr("menu.delete_shortcut"))
         delete_shortcut.setEnabled(self.shortcuts.supported and self.shortcuts.is_created())
         delete_shortcut.triggered.connect(self.delete_desktop_shortcut)
         menu.addSeparator()
-        logs = menu.addAction("打开日志目录")
+        logs = menu.addAction(tr("menu.open_logs"))
         logs.triggered.connect(self.open_logs)
-        about = menu.addAction("关于")
+        about = menu.addAction(tr("menu.about"))
         about.triggered.connect(self.show_about)
         menu.addSeparator()
-        quit_action = menu.addAction("退出")
+        quit_action = menu.addAction(tr("menu.exit"))
         quit_action.triggered.connect(self.quit_requested.emit)
         return menu
 
@@ -306,13 +309,22 @@ class PetWindow(QWidget):
         self.save_settings()
 
     def open_action_settings(self) -> None:
+        original_overrides = self._action_overrides_for(self.current_skin.id)
+        original_quiet = self.settings.quiet_mode
         dialog = ActionSettingsDialog(
             self.current_skin,
-            self._action_overrides_for(self.current_skin.id),
+            original_overrides,
             self,
+            quiet_mode=original_quiet,
         )
+        dialog.preview_changed.connect(self.pet.set_action_overrides)
+        dialog.quiet_mode_changed.connect(self.pet.set_quiet_mode)
         if dialog.exec() != dialog.DialogCode.Accepted:
+            self.pet.set_action_overrides(original_overrides)
+            self.pet.set_quiet_mode(original_quiet)
             return
+        self.settings.quiet_mode = dialog.quiet_mode
+        self.pet.set_quiet_mode(dialog.quiet_mode)
         self.set_action_pool_overrides(dialog.selected_overrides())
 
     def set_action_pool_overrides(self, overrides: dict[str, list[str]]) -> None:
@@ -336,7 +348,7 @@ class PetWindow(QWidget):
             self.settings.startup_enabled = enabled
             self.save_settings()
         except Exception as exc:
-            QMessageBox.warning(self, "Codex Usage Pet", f"无法修改开机启动：{exc}")
+            QMessageBox.warning(self, "Codex 额度桌宠", f"无法修改开机启动：{exc}")
 
     def create_desktop_shortcut(self) -> None:
         try:
@@ -394,7 +406,7 @@ class PetWindow(QWidget):
         try:
             self.set_auto_skin_fixed_time(value.strip())
         except ValueError:
-            QMessageBox.warning(self, "Codex Usage Pet", "时间格式应为 HH:MM，例如 08:30。")
+            QMessageBox.warning(self, "Codex 额度桌宠", "时间格式应为 HH:MM，例如 08:30。")
 
     def rescan_skins(self) -> None:
         self._queue_skin_swap(self.skin_manager.rescan())
@@ -442,8 +454,8 @@ class PetWindow(QWidget):
         QMessageBox.about(
             self,
             "关于 Codex Usage Pet",
-            "Codex Usage Pet 0.1.0\n\n独立人物窗口与 Skin Pack 交互动画。\n"
-            "额度来自本机官方 Codex App Server。\n不读取浏览器 Cookie，不保存认证凭据。",
+            "Codex 额度桌宠 0.1.0\n\n独立人物窗口与皮肤包互动动画。\n"
+            "额度来自本机官方 Codex 应用服务。\n不读取浏览器登录信息，不保存认证凭据。",
         )
 
     def eventFilter(self, watched, event) -> bool:  # type: ignore[no-untyped-def]

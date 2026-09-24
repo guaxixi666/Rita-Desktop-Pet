@@ -313,8 +313,8 @@ def test_skin_menu_contains_manual_random_auto_and_rescan(app: QApplication, tmp
     menu = window.build_menu()
     skin_menu = next(action.menu() for action in menu.actions() if action.text() == "皮肤")
     labels = {action.text() for action in skin_menu.actions()}
-    assert "Rita · Umbral Rose" in labels
-    assert "Rita · Moonlit Rose" in labels
+    assert "丽塔 · 黯蔷薇" in labels
+    assert "丽塔 · 月下蔷薇" in labels
     assert {"随机换一个", "重新扫描皮肤", "打开皮肤目录"} <= labels
     assert any(action.text() == "自动换肤" for action in skin_menu.actions())
     window.deleteLater()

@@ -1,0 +1,220 @@
+{
+  "logical_canvas": [
+    232,
+    244
+  ],
+  "skins": {
+    "rita_moonlit_rose": {
+      "pet_window_geometry": [
+        500,
+        377,
+        223,
+        225
+      ],
+      "union_bounds": [
+        20.176,
+        24.637,
+        214.195,
+        216.363
+      ],
+      "actions": {
+        "idle": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "blink": {
+          "frames": 6,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.295,
+          "head_top_drift_px": 0.434
+        },
+        "hover": {
+          "frames": 6,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 1.832,
+          "head_top_drift_px": 1.939
+        },
+        "click": {
+          "frames": 8,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 10.194,
+          "head_top_drift_px": 10.199
+        },
+        "wave": {
+          "frames": 8,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 11.494,
+          "head_top_drift_px": 11.498
+        },
+        "walk": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "sit": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "sit_transition": {
+          "frames": 10,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 27.776,
+          "head_top_drift_px": 38.531
+        },
+        "stretch": {
+          "frames": 12,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 3.79,
+          "head_top_drift_px": 3.908
+        },
+        "critical": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "sleep": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "sleep_react": {
+          "frames": 8,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 6.864,
+          "head_top_drift_px": 8.544
+        },
+        "look_left": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "look_right": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        }
+      },
+      "final_pet_window_geometry": [
+        500,
+        377,
+        223,
+        225
+      ]
+    },
+    "rita_umbral_rose": {
+      "pet_window_geometry": [
+        497,
+        377,
+        226,
+        225
+      ],
+      "union_bounds": [
+        17.141,
+        24.637,
+        217.23,
+        216.363
+      ],
+      "actions": {
+        "idle": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "blink": {
+          "frames": 6,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.295,
+          "head_top_drift_px": 0.434
+        },
+        "hover": {
+          "frames": 6,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 1.832,
+          "head_top_drift_px": 1.939
+        },
+        "click": {
+          "frames": 8,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 10.194,
+          "head_top_drift_px": 10.199
+        },
+        "wave": {
+          "frames": 8,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 11.494,
+          "head_top_drift_px": 11.498
+        },
+        "walk": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "sit": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "sit_transition": {
+          "frames": 10,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 27.931,
+          "head_top_drift_px": 37.776
+        },
+        "stretch": {
+          "frames": 12,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 3.154,
+          "head_top_drift_px": 3.86
+        },
+        "critical": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "sleep": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "sleep_react": {
+          "frames": 8,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 6.864,
+          "head_top_drift_px": 8.544
+        },
+        "look_left": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        },
+        "look_right": {
+          "frames": 1,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 0.0,
+          "head_top_drift_px": 0.0
+        }
+      },
+      "final_pet_window_geometry": [
+        497,
+        377,
+        226,
+        225
+      ]
+    }
+  }
+}

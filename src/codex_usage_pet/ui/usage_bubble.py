@@ -19,6 +19,7 @@ from codex_usage_pet.pet.states import PetState
 from codex_usage_pet.skins.models import SkinPack, SkinTheme
 
 from . import theme
+from .localization import tr
 
 
 class UsageRow(QWidget):
@@ -62,7 +63,7 @@ class UsageRow(QWidget):
             f"QProgressBar::chunk{{background:{color};border-radius:3px;}}"
             f"QProgressBar:hover::chunk{{background:{self._theme.highlight};}}"
         )
-        self.detail.setText(f"{remaining}%")
+        self.detail.setText(tr("usage.remaining", value=remaining))
         self.reset.setText(_format_reset(window.resets_at, weekly))
 
     def set_theme(self, palette: SkinTheme) -> None:
@@ -101,11 +102,11 @@ class UsageBubble(QWidget):
         line = QWidget()
         line.setObjectName("decorLine")
         line.setFixedHeight(1)
-        self.five_hour = UsageRow("5H")
-        self.weekly = UsageRow("WEEKLY")
+        self.five_hour = UsageRow(tr("usage.five_hour"))
+        self.weekly = UsageRow(tr("usage.weekly"))
         self.credits = QLabel("")
         self.credits.setObjectName("credits")
-        self.status = QLabel("正在读取额度…")
+        self.status = QLabel(tr("usage.reading"))
         self.status.setObjectName("status")
         self.status.setWordWrap(True)
 
@@ -149,7 +150,7 @@ class UsageBubble(QWidget):
 
     def set_snapshot(self, snapshot: UsageSnapshot) -> None:
         self._snapshot = snapshot
-        self.plan.setText((snapshot.account.plan_type or "").replace("_", " ").upper())
+        self.plan.setText(_format_plan(snapshot.account.plan_type))
         self.five_hour.set_window(snapshot.five_hour)
         self.weekly.set_window(snapshot.weekly, weekly=True)
         self.credits.setText(_format_credits(snapshot))
@@ -234,29 +235,47 @@ def _progress_color(remaining: int, palette: SkinTheme) -> str:
 
 def _format_reset(value: datetime | None, weekly: bool) -> str:
     if value is None:
-        return "重置时间未知"
+        return tr("usage.reset_unknown")
     if weekly:
         weekdays = "一二三四五六日"
-        return f"周{weekdays[value.weekday()]} {value:%H:%M}"
+        return f"周{weekdays[value.weekday()]} {value:%H:%M} 恢复"
     seconds = max(0, int((value - datetime.now().astimezone()).total_seconds()))
     hours, remainder = divmod(seconds, 3600)
     minutes = remainder // 60
-    return f"{hours}h {minutes:02d}m 后恢复"
+    if hours:
+        return f"{hours} 小时 {minutes} 分后恢复"
+    return f"{minutes} 分后恢复"
 
 
 def _format_credits(snapshot: UsageSnapshot) -> str:
     credits = snapshot.credits
     if credits:
         if credits.unlimited:
-            return "CREDITS   ∞"
+            return tr("usage.credits", value="∞")
         if credits.balance is not None:
             balance = (
                 credits.balance.quantize(Decimal("1"))
                 if credits.balance == credits.balance.to_integral()
                 else credits.balance
             )
-            return f"CREDITS   {balance}"
+            return tr("usage.credits", value=balance)
     if snapshot.reset_credits_available:
-        return f"RESET PASS   {snapshot.reset_credits_available}"
+        return tr("usage.reset_pass", value=snapshot.reset_credits_available)
     return ""
+
+
+def _format_plan(value: str | None) -> str:
+    if not value:
+        return ""
+    normalized = value.strip().lower().replace("-", "_")
+    known = {
+        "free": "免费版",
+        "plus": "Plus 版",
+        "pro": "Pro 版",
+        "team": "团队版",
+        "business": "商业版",
+        "enterprise": "企业版",
+        "edu": "教育版",
+    }
+    return known.get(normalized, value.replace("_", " "))
 

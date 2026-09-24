@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "id": "rita_umbral_rose",
-  "name": "Rita · Umbral Rose",
+  "name": "丽塔 · 黯蔷薇",
   "author": "Codex Usage Pet",
   "version": "1.0",
-  "description": "Original Rita-inspired chibi skin in the Umbral Rose palette.",
+  "description": "原创绘制的丽塔风格 Q 版黯蔷薇主题皮肤。",
   "preview": "preview.png",
   "preferred_width": 222,
   "preferred_height": 222,
@@ -72,17 +72,17 @@
     }
   },
   "states": {
-    "idle": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [0, 0], "offset_x": -37},
+    "idle": {"source": "animations/blink.png", "grid": [3, 2], "cell": [0, 0]},
     "blink": {"source": "animations/blink.png", "grid": [3, 2], "frames": 6, "fps": 20, "frame_durations_ms": [150, 70, 70, 110, 70, 130], "loop": false, "cooldown": 1500, "interruptible": true},
     "hover": {"source": "animations/hover.png", "grid": [3, 2], "frames": 6, "fps": 24, "frame_durations_ms": [180, 160, 180, 240, 180, 160], "loop": false, "cooldown": 1500, "interruptible": true},
     "click": {"source": "animations/click.png", "grid": [4, 2], "frames": 8, "fps": 24, "frame_durations_ms": [160, 140, 160, 240, 280, 220, 160, 140], "loop": false, "cooldown": 1000, "interruptible": false},
     "wave": {"source": "animations/wave.png", "grid": [4, 2], "frames": 8, "fps": 24, "frame_durations_ms": [260, 220, 220, 320, 420, 360, 320, 280], "loop": false, "interruptible": true},
-    "walk": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [1, 0], "offset_x": -22},
+    "walk": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [1, 0]},
     "sit": {"source": "animations/sit_transition.png", "grid": [5, 2], "cell": [4, 1]},
     "sit_transition": {"source": "animations/sit_transition.png", "grid": [5, 2], "frames": 10, "fps": 24, "frame_durations_ms": [140, 140, 140, 160, 180, 220, 180, 160, 140, 140], "loop": false, "interruptible": false},
     "stretch": {"source": "animations/tidy_hair.png", "grid": [4, 3], "frames": 12, "fps": 24, "frame_durations_ms": [240, 180, 180, 180, 180, 320, 420, 320, 260, 240, 220, 180], "loop": false, "interruptible": true},
-    "critical": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [1, 1], "offset_x": -10},
-    "sleep": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [2, 1], "offset_x": -10},
+    "critical": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [1, 1]},
+    "sleep": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [2, 1]},
     "sleep_react": {"source": "animations/sleep_react.png", "grid": [4, 2], "frames": 8, "fps": 20, "frame_durations_ms": [320, 240, 240, 360, 420, 360, 260, 200], "loop": false, "cooldown": 1000, "interruptible": false}
   }
 }

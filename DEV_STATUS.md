@@ -8,7 +8,7 @@ Updated: 2026-09-24
 
 ## Final acceptance
 
-- Automated tests: **136 passed** with Qt offscreen; the release build repeats the full suite before packaging.
+- Automated tests: **148 passed** with Qt offscreen; the release build repeats the full suite before packaging.
 - Frozen EXE smoke test: exit code 0; completed a real App Server read; no new App Server process remained after exit.
 - Portable test: extracted into a new `%TEMP%` directory outside the source tree, completed a real App Server read, exited 0, and left no child process behind.
 - Live Codex App Server read: account type `chatgpt`, plan `plus`, Codex bucket, 5-hour and weekly windows, credits, and reset-credit count were returned.
@@ -48,8 +48,8 @@ Updated: 2026-09-24
 - Hover triggers its dedicated 6-frame/600 ms glance-and-smile sequence once per pointer entry with a 1.5-second cooldown. Click has higher priority, interrupts Hover or an interruptible autonomous action, plays its dedicated 8-frame/800 ms response, then returns to the quota-driven pose.
 - NORMAL schedules weighted Blink/Wave/Stretch actions at a fresh random 30–120-second interval. LOW, CRITICAL, EMPTY, and RECOVERED keep priority and cannot be overridden by random idle actions.
 - Split the character and quota bubble into independent top-level transparent tool windows. The character keeps a persisted bottom-center screen anchor; bubble show/hide, direction changes, pose changes, and skin changes do not participate in character layout.
-- Runtime alpha bounding-box cropping uses threshold 15 and a 4 px safe margin. The default idle window changed from 232x244 (56,608 px) to 137x204 (27,948 px), a 50.63% area reduction.
-- Native capture measured the same character anchor `(1865, 1001)` and geometry `(1767, 789, 137, 204)` before and after hiding the bubble: exact delta `(0, 0)`. A ten-cycle show/hide regression test also remained drift-free.
+- Alpha scanning uses threshold 15 and a 4 px safe margin. The current implementation promotes cropping to a Skin-wide all-action Union Bounds so animation geometry remains fixed; Umbral Rose is 226×225 and Moonlit Rose is 223×225 in the current asset set.
+- Native and automated capture retain the same character anchor before and after hiding the bubble with exact delta `(0, 0)`. A ten-cycle show/hide regression test also remains drift-free.
 - Native visual QA artifacts: `artifacts/ui/pet-idle.png`, `pet-hover.png`, `pet-click.png`, `bubble-open.png`, and `bubble-closed.png`. One visual correction moved the blink eyelid from the fringe to the visible eye.
 - Final rebuilt EXE and freshly extracted portable smoke tests both exited 0, read the real App Server (`5h used=29%`, `weekly used=56%` at 2026-09-23 16:29 +08:00), loaded both bundled skins, and left zero new App Server processes. All project, third-party, Qt/GPL/LGPL license files were present in the extracted release.
 
@@ -69,7 +69,7 @@ Updated: 2026-09-24
 - Animation timing, loop behavior, cooldown, and interruptibility are declared in each skin manifest instead of being hardcoded per action in the widget.
 - Runtime frame crops are cached on first use, bounded shared alpha metadata is reused, and all per-skin caches are cleared on skin change. No frame reads from disk occur during playback.
 - Every sequence uses a normalized transparent 512x512 logical cell. Automated alpha audits measured a 0-pixel bottom-edge delta across every frame of all six sequences.
-- Each animation uses its whole-sequence alpha union for window sizing. Native contact-sheet rendering and tests confirmed constant geometry and a fixed bottom-center screen anchor for every frame; the usage bubble also remains fixed during Click.
+- The current renderer uses one all-action alpha Union Bounds for the entire Skin lifecycle. Native contact-sheet rendering and tests confirmed constant geometry and a fixed bottom-center screen anchor for every frame; the usage bubble also remains fixed during Click.
 - Visual QA contact sheets are in `artifacts/animations/`: Blink, Hover, Click, Wave, Stretch, Sleep React, plus the idle/sit/critical/sleep state poses. Generated candidates with only whole-image motion were not used.
 - Final rebuilt EXE and freshly extracted portable ZIP both exited 0, read the real App Server (`5h used=58%`, `weekly used=60%` at 2026-09-23 17:21 +08:00), included both skins' animation assets and all license files, and left zero new App Server processes.
 
@@ -106,10 +106,10 @@ Inno Setup 6 is not installed on this machine, so no installer executable was bu
 - Inserted a policy/selector layer between events and the existing animation player. Hover, Click, Random Idle, RECOVERED, and NORMAL/LOW/CRITICAL/EMPTY state phases now choose from Skin-defined weighted candidates rather than forcing one animation in UI code.
 - LOW, CRITICAL, and EMPTY each support distinct `on_enter`, persistent `idle`, and `on_exit` pools. Existing priority remains system state > Click > Hover > Random Idle > idle; priority selects the event class, never the concrete animation.
 - Candidates support `none`, per-action cooldown ranges, `allowed_states`, missing-asset filtering, and three-item session history with immediate-repeat avoidance. Empty or unsupported pools safely use the base pose.
-- Added “互动设置 → 动作设置…” with per-Skin enable/disable overrides and one-click restoration of the Skin defaults. Overrides persist independently by Skin ID without modifying the manifest.
+- Added per-Skin enable/disable overrides and one-click restoration of Skin defaults. The current Chinese card/Chip interface is documented in the later animation anchoring section. Overrides persist independently by Skin ID without modifying the manifest.
 - Extended Skin Pack state IDs to support future custom animations without adding them to the `PetActivity` enum. Both bundled Rita skins now declare different action weights, timing, and response frequency.
 - Native Qt policy QA ran 60 selections each for Hover, Click, and Random Idle. Umbral Rose produced Hover/none/Blink = 24/13/23, Click/Wave/Tidy Hair/none = 22/13/17/8, and Wave/Tidy Hair/Blink/none = 10/20/19/11; the screen anchor stayed fixed at every selection. Evidence: `artifacts/action-policy-validation.json`.
-- Automated tests: **130 passed**, including selection diversity, unsupported/state filtering, cooldown, repeat avoidance, single/empty pools, `none`, user override/reset, per-Skin personality, custom action IDs, concise `action_pools` compatibility, state phase ordering, priority protection, and anchor preservation.
+- At completion of the Action Policy phase, **130 tests passed**, including selection diversity, unsupported/state filtering, cooldown, repeat avoidance, single/empty pools, `none`, user override/reset, per-Skin personality, custom action IDs, concise `action_pools` compatibility, state phase ordering, priority protection, and anchor preservation.
 - Rebuilt frozen EXE and portable ZIP both passed `--smoke-test` with exit code 0. A freshly extracted portable copy ran outside the source directory, left no App Server child process, and contained both Skin policies plus project/Qt license files.
 
 ## App Server Explorer-launch repair
@@ -118,10 +118,24 @@ Inno Setup 6 is not installed on this machine, so no installer executable was bu
 - Added structured `AppServerError` metadata and chaining for `discover_codex`, `spawn_app_server`, `initialize_request`, `initialized_notification`, `account_read`, `rate_limits_read`, and `response_parse`. Diagnostics retain original type/message, `__cause__`, exit code, redacted stderr, and JSON-RPC code/message.
 - Discovery now checks PATH plus Codex Desktop and common per-user npm launcher locations without hardcoding a username. Windows `.cmd` launchers use a hidden command shell and passed an integration test from a path containing spaces.
 - Source mode with PATH deliberately limited to Windows system directories discovered the Codex Desktop executable, completed every protocol stage, and read real data: 5h used 44%, weekly used 79% at 2026-09-24 09:43 +08:00.
-- Full automated suite: **136 passed**. Credential redaction now also covers `Authorization: Bearer ...` as one complete header value.
+- At completion of the App Server repair phase, **136 tests passed**. Credential redaction now also covers `Authorization: Bearer ...` as one complete header value.
 - Rebuilt frozen mode with the same restricted PATH exited 0 and read 5h used 60% / weekly used 81%. Opening the EXE through the Windows Explorer Shell verb read 61% / 81%.
 - The existing Desktop shortcut was verified to target the rebuilt EXE with the correct working directory. Launched with no Codex directory in PATH, it discovered the per-user executable and read 5h used 62% / weekly used 82%.
 - The post-acceptance application log contained zero unredacted Bearer, Authorization, Cookie, access/refresh/session token, or session credential matches.
+
+## Animation anchoring and Chinese interaction UI
+
+- Root cause confirmed in both layers: action-level alpha unions changed `PetWidget` size and forced `PetWindow` repositioning, while the built-in frame sheets also used inconsistent transparent padding/contact centers. The old idle manifest added a further `offset_x=-37`.
+- All frames now map into one 232×244 logical canvas using a normalized bottom-center contact anchor. A single all-action Union Bounding Box plus 4 px safe padding is calculated only when a Skin loads or reloads; animation playback never resizes or moves the character window.
+- Built-in idle now uses the animation-aligned standing frame, removing the former scale pop at the start and end of Hover, Click, Wave, Tidy Hair, and Sit Transition.
+- Hatch-pet-style QA reports 0.0 px maximum foot-anchor drift for every action in both bundled skins. Umbral Rose PetWindow geometry remained `[497, 377, 226, 225]` from first to last sampled frame; Moonlit Rose remained `[500, 377, 223, 225]`.
+- Debug overlays for idle→Hover→idle, idle→Click→idle, idle→Wave→idle, and idle→Sit are under `artifacts/animations/debug/`; `anchor-drift-report.json` contains foot, face, head-top, Union Bounds, and geometry evidence.
+- Replaced the engineering checkbox/tabs dialog with a Rita-themed Chinese page using collapsible event cards, action Chips, immediate preview, per-card “皮肤默认/自定义” source labels, and a localized restore confirmation.
+- Added persistent quiet mode. It suppresses Hover and Random Idle at runtime only; Click and LOW/CRITICAL/EMPTY system behavior remain enabled, and the user's English action IDs are not rewritten.
+- Centralized visible labels in `ui/localization.py`; internal action/event IDs, manifest keys, settings JSON, and RPC methods remain English. Missing localization keys fall back safely.
+- Windows screenshot QA found and fixed initial scroll displacement and a light viewport leak. Final screenshot: `artifacts/ui/interaction-settings-cn.png`.
+- Current automated suite: **148 passed**.
+- Rebuilt frozen EXE smoke test exited 0 and read real App Server data (`5h used=45%`, `weekly used=90%`). A freshly extracted portable copy outside the source tree exited 0 and read `46% / 90%`; both left zero new Codex child processes, and all release/license files were present.
 
 ## Known limitations
 

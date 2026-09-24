@@ -58,7 +58,7 @@ class TrayIcon(QObject):
         self._toggle_window = toggle_window
         self._menu: QMenu | None = None
         self.icon = QSystemTrayIcon(make_app_icon(skin), self)
-        self.icon.setToolTip("Codex Usage Pet")
+        self.icon.setToolTip("Codex 额度桌宠")
         self.icon.activated.connect(self._activated)
         self.icon.show()
 

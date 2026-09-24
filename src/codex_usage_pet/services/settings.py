@@ -30,6 +30,7 @@ class AppSettings:
     auto_skin_fixed_time: str = "08:00"
     last_skin_change: str | None = None
     random_skin_no_repeat: bool = True
+    quiet_mode: bool = False
     action_pool_overrides: dict[str, dict[str, list[str]]] = field(default_factory=dict)
 
     def normalize(self) -> "AppSettings":
@@ -54,6 +55,7 @@ class AppSettings:
         if self.last_skin_change is not None and not isinstance(self.last_skin_change, str):
             self.last_skin_change = None
         self.random_skin_no_repeat = bool(self.random_skin_no_repeat)
+        self.quiet_mode = bool(self.quiet_mode)
         normalized_overrides: dict[str, dict[str, list[str]]] = {}
         if isinstance(self.action_pool_overrides, dict):
             for skin_id, raw_pools in self.action_pool_overrides.items():

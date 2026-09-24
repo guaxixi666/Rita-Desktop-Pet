@@ -141,11 +141,11 @@ def test_alpha_bounding_rect_uses_threshold() -> None:
     assert alpha_bounding_rect(image, 15) == QRect(4, 5, 11, 8)
 
 
-def test_alpha_hitbox_is_much_smaller_than_old_canvas(app, tmp_path: Path) -> None:
+def test_skin_union_bounds_stays_inside_logical_canvas(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
-    old_area = 232 * 244
-    assert window.width() * window.height() < old_area * 0.55
-    assert window.width() < 180
+    assert window.width() <= 232 + window.pet.SAFE_PADDING * 2
+    assert window.height() <= 244 + window.pet.SAFE_PADDING * 2
+    assert not window.pet.skin_union_bounds.isNull()
     window.deleteLater()
 
 
