@@ -56,10 +56,14 @@ class SkinStateAsset:
     def frame_duration_ms(self, index: int) -> int:
         """Return this frame's display time; explicit timing outranks FPS."""
         if self.frame_durations_ms:
-            return self.frame_durations_ms[index % len(self.frame_durations_ms)]
+            duration = self.frame_durations_ms[index % len(self.frame_durations_ms)]
+            if duration > 0:
+                return duration
         if self.fps > 0:
             return max(33, round(1000 / self.fps))
-        return 0
+        # A malformed optional skin must not freeze halfway through a
+        # multi-frame action. Static poses intentionally do not need a timer.
+        return 100 if self.frame_count > 1 else 0
 
     def cell_at(self, index: int) -> tuple[int, int]:
         if self.frames:

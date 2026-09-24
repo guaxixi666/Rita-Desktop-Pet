@@ -176,7 +176,7 @@ py -3.12 -m venv .venv
 
 ### 动作池与角色性格
 
-动作选择链路为“事件/状态 → Skin Policy → 用户启用项 → 状态、素材与 cooldown 过滤 → 加权选择 → 动画播放器”。支持 `hover`、`click`、`idle_random`、`recovered`、`normal_idle`，以及 LOW / CRITICAL / EMPTY 各自的 `*_on_enter`、`*_idle`、`*_on_exit`。`none` 是合法候选，表示本次保持安静；过滤后为空也会安全回到基础姿态。
+动作选择链路为“事件/状态 → Skin Policy → 用户启用项 → 状态、素材与 cooldown 过滤 → 加权选择 → 动画播放器”。支持 `hover`、`click`、`idle_random`、`recovered`、`normal_idle`，以及 LOW / CRITICAL / EMPTY 各自的 `*_on_enter`、`*_idle`、`*_on_exit`。`none` 是合法候选，表示本次保持安静；过滤后为空也会安全回到基础姿态。两套内置 Rita Skin 的默认 Hover/Click 池不再包含 `none`，因此一次真实悬停或点击一定会产生可见反馈；Random Idle 与状态过渡仍可按 Skin 个性保持安静。
 
 `cooldown` 使用毫秒，可写单个数或 `[min, max]`；`allowed_states` 限制动作出现的额度状态。最近 3 次已播放动作只保留在当前运行 session 中，默认避免立即重复；候选只有一个时仍允许重复。系统状态动作、Click、Hover、随机待机和 idle 的优先级依次降低，优先级只决定哪类事件可播放，具体动作仍由池选择。
 
@@ -226,6 +226,15 @@ $env:QT_QPA_PLATFORM = "offscreen"
 ```
 
 测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置损坏、日志凭据脱敏、开机启动、Skin Pack 扫描与 fallback、手动/随机/定时换肤、重启续时、固定时间、热加载、自定义动作 ID、动作池权重/过滤/cooldown/防重复/none/用户覆盖、状态进入/持续/退出、动作优先级、状态保持、统一 logical canvas、全 Skin Union Bounds、逐帧顺序与时长优先级、hold frame、帧缓存与释放、窗口 geometry、脚底 0 px anchor、安静模式、中文映射安全 fallback、气泡跟随，以及反复显隐时人物 0 像素漂移。
+
+动画回归诊断可运行：
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path .\src)
+.\.venv\Scripts\python.exe .\tools\animation_regression_qa.py
+```
+
+它通过真实 Qt renderer 和 QTimer 验证逐帧像素差异、Timer 推进、统一 Canvas 与脚底 anchor，并在 `artifacts\regression\` 生成 Blink、Click、Wave、Sit GIF 和诊断文本。
 
 ## 打包
 

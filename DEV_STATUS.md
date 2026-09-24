@@ -137,6 +137,17 @@ Inno Setup 6 is not installed on this machine, so no installer executable was bu
 - Current automated suite: **148 passed**.
 - Rebuilt frozen EXE smoke test exited 0 and read real App Server data (`5h used=45%`, `weekly used=90%`). A freshly extracted portable copy outside the source tree exited 0 and read `46% / 90%`; both left zero new Codex child processes, and all release/license files were present.
 
+## Animation regression repair
+
+- The playback/render chain was isolated before modification. Direct pixel hashes and a live Qt event-loop trace proved that sprite slicing, per-frame cache identity, QTimer ownership, frame index advancement, `update()`, and unified-canvas painting were working in source mode.
+- The apparent freeze came from two delivery/trigger regressions: the shipped EXE predated the last source commit, and the default Hover/Click policies could select `none` while autonomous idle waited 60–180 seconds with a 48% trigger probability. A single pointer entry or click could therefore produce no visible response, followed by a long static interval.
+- Both bundled Rita defaults now guarantee a visible Hover and Click candidate while retaining weighted ActionSelector behavior, cooldowns, user overrides, `none` for Random Idle/state policy, English internal IDs, and the Chinese display layer.
+- Added a direct diagnostic `play_action(action_id)` path that bypasses randomness but uses the same player, frame cache, timer, canvas, and painter. Quiet mode still blocks only Hover/Random Idle and does not block this diagnostic path.
+- Multi-frame timing now safely falls back to FPS or 100 ms if an optional Skin supplies an invalid/non-positive per-frame duration; one-frame static poses still create no timer.
+- `artifacts/regression/animation-diagnostics.txt` records real timer traces. Rendered evidence: `blink-fixed.gif` (6/6 unique), `click-fixed.gif` (8/8), `wave-fixed.gif` (8/8), and `sit-fixed.gif` (10/10). Canvas size and anchor are constant; PetWindow position, size, and bottom-center anchor drift are all 0 px.
+- Automated suite: **161 passed** with Qt offscreen, including normalized rendered-pixel checks, cache identity, real QTimer advancement, localization ID preservation, quiet-mode diagnostic playback, the hidden English-ID animation test entry, deterministic default interaction, real click-event routing, geometry stability, idle restoration, and post-Skin-switch playback.
+- The rebuilt frozen EXE played the forced Wave path on the real Windows desktop, produced `artifacts/regression/frozen-wave-runtime.png`, read real App Server usage (`5h used=72%`, `weekly used=95%`), and exited 0. The freshly extracted portable build played Click, read `73% / 95%`, exited 0, included all release/license files, and left zero new Codex child processes. The application log had zero sensitive credential-pattern matches.
+
 ## Known limitations
 
 - The build is unsigned and can trigger Windows SmartScreen.

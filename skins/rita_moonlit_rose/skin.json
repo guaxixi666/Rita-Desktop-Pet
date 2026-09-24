@@ -33,15 +33,13 @@
     "pools": {
       "hover": [
         {"action": "blink", "weight": 55, "cooldown": [6000, 18000], "allowed_states": ["normal"]},
-        {"action": "hover", "weight": 20, "cooldown": [5000, 12000], "allowed_states": ["normal"]},
-        {"action": "none", "weight": 25, "allowed_states": ["normal"]}
+        {"action": "hover", "weight": 20, "cooldown": [5000, 12000], "allowed_states": ["normal"]}
       ],
       "click": [
         {"action": "click", "weight": 35, "cooldown": [1500, 3500], "allowed_states": ["normal", "low"]},
         {"action": "wave", "weight": 35, "cooldown": [45000, 120000], "allowed_states": ["normal", "low"]},
         {"action": "stretch", "weight": 15, "cooldown": [90000, 210000], "allowed_states": ["normal", "low"]},
-        {"action": "sleep_react", "weight": 75, "cooldown": [2500, 6000], "allowed_states": ["empty"]},
-        {"action": "none", "weight": 15, "allowed_states": ["normal", "low", "empty"]}
+        {"action": "sleep_react", "weight": 75, "cooldown": [2500, 6000], "allowed_states": ["empty"]}
       ],
       "idle_random": [
         {"action": "blink", "weight": 50, "cooldown": [6000, 18000], "allowed_states": ["normal"]},

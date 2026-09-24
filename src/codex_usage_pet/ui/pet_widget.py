@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 import random
 from pathlib import Path
@@ -26,6 +27,8 @@ from . import theme
 _SHARED_ANIMATION_BOUNDS: dict[
     tuple[Path, int, tuple[tuple[int, int], ...], tuple[int, int]], QRect
 ] = {}
+
+logger = logging.getLogger(__name__)
 
 
 def alpha_bounding_rect(image: QImage, threshold: int = 15) -> QRect:
@@ -229,6 +232,15 @@ class PetWidget(QWidget):
         decision = self._choose(ActionEvent.CLICK, self.state, now=now)
         return self._start_decision(decision, self.PRIORITY_CLICK, now)
 
+    def play_action(self, action_id: str) -> bool:
+        """Play one supported action directly for diagnostics and visual QA."""
+        resolved = self.skin.resolve_activity(action_id, required=False)
+        if resolved is None or not self.skin.has_explicit_state(resolved):
+            logger.debug("animation diagnostic rejected: action=%s", action_id)
+            return False
+        logger.debug("animation diagnostic play: action=%s", action_id)
+        return self._start_action(resolved, priority=self.PRIORITY_SYSTEM)
+
     def enterEvent(self, event: QEvent) -> None:
         self.play_hover_reaction()
         super().enterEvent(event)
@@ -265,6 +277,13 @@ class PetWidget(QWidget):
         self._prepare_visual()
         asset = self.skin.asset_for(activity)
         self._start_frame_timer()
+        logger.debug(
+            "animation started: action=%s frames=%d timer_active=%s interval_ms=%d",
+            activity.value if isinstance(activity, PetActivity) else activity,
+            asset.frame_count,
+            self._frame_timer.isActive(),
+            self._frame_timer.interval(),
+        )
         if asset.frame_count <= 1:
             self._action_timer.start(duration_ms or asset.duration_ms or 600)
         self._update_tooltip()
@@ -274,6 +293,7 @@ class PetWidget(QWidget):
     def _finish_action(self) -> None:
         self._action_timer.stop()
         self._frame_timer.stop()
+        finished = self._action_activity
         self._action_activity = None
         self._action_priority = 0
         self.activity = self.behavior.advance()
@@ -281,6 +301,11 @@ class PetWidget(QWidget):
         self._prepare_visual()
         self._start_frame_timer()
         self._update_tooltip()
+        logger.debug(
+            "animation finished: action=%s base=%s",
+            finished.value if isinstance(finished, PetActivity) else finished,
+            self.activity.value if isinstance(self.activity, PetActivity) else self.activity,
+        )
         if self._pending_system_decisions:
             self._play_next_system_decision()
             return
@@ -342,8 +367,14 @@ class PetWidget(QWidget):
         self, decision: ActionDecision, priority: int, now: float | None = None
     ) -> bool:
         if decision.action is None:
+            logger.debug(
+                "animation decision: event=%s selected=none reason=%s",
+                decision.event,
+                decision.reason,
+            )
             return False
         activity = self._resolve_activity(decision.action)
+        logger.debug("animation decision: event=%s selected=%s", decision.event, decision.action)
         if not self._start_action(activity, priority=priority):
             return False
         asset = self.skin.asset_for(activity)
@@ -543,6 +574,13 @@ class PetWidget(QWidget):
         interval = asset.frame_duration_ms(self._frame_index)
         if interval > 0:
             self._frame_timer.start(interval)
+        logger.debug(
+            "animation frame: action=%s frame=%d/%d interval_ms=%d",
+            self.activity.value if isinstance(self.activity, PetActivity) else self.activity,
+            self._frame_index,
+            asset.frame_count,
+            interval,
+        )
         self.update()
 
     def paintEvent(self, _event) -> None:  # type: ignore[no-untyped-def]

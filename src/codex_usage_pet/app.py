@@ -20,6 +20,7 @@ from codex_usage_pet.ui.tray import TrayIcon, make_app_icon
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Codex Usage Pet")
     parser.add_argument("--smoke-test", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--animation-test", metavar="ACTION_ID", help=argparse.SUPPRESS)
     return parser
 
 
@@ -67,6 +68,8 @@ def main(argv: list[str] | None = None) -> int:
     app.aboutToQuit.connect(service.stop)
     tray.refresh_menu()
     window.show()
+    if args.animation_test:
+        QTimer.singleShot(100, lambda: window.pet.play_action(args.animation_test))
     service.start()
     if args.smoke_test:
         # Leave enough time for a real App Server handshake and first quota
