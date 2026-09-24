@@ -31,7 +31,7 @@ class RecoveringClient:
         self.closed = True
 
 
-def test_temporary_failure_emits_error_then_recovers() -> None:
+def test_temporary_failure_emits_error_then_recovers(caplog) -> None:
     app = QCoreApplication.instance() or QCoreApplication([])
     client = RecoveringClient()
     service = UsageService(client=client)  # type: ignore[arg-type]
@@ -54,6 +54,8 @@ def test_temporary_failure_emits_error_then_recovers() -> None:
 
     assert client.closed
     assert service._thread is not None and not service._thread.is_alive()
+    assert "temporary outage" in caplog.text
+    assert "Traceback" in caplog.text
 
 
 def _wait_for(app: QCoreApplication, event: threading.Event, timeout: float) -> bool:

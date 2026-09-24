@@ -44,6 +44,8 @@ codex app-server --listen stdio://
 
 程序不会抓取 ChatGPT 网页，不读取浏览器 Cookie，不要求粘贴 session token，也不会把凭据写入配置或日志。认证的保存与刷新完全由官方 Codex CLI/App Server 处理。
 
+Windows 启动时会先检查 `codex`、`codex.exe` 和 `codex.cmd`，然后检查当前用户的 Codex Desktop 与 npm launcher 目录。因此即使 Explorer 的 PATH 尚未包含最新 Codex 目录，也能发现当前用户安装的官方 executable；`.cmd` launcher 会通过隐藏的 Windows command shell 正确启动。
+
 ## 环境
 
 - Windows 10/11
@@ -276,6 +278,8 @@ Inno Setup，因此安装器定义已提供，但安装器二进制尚未在本�
 ### 显示“暂时无法读取额度”
 
 先在 PowerShell 运行 `codex --version`，确认 `codex.exe` 在 PATH 中；再打开 Codex CLI 检查登录状态。应用会进行有上限的指数退避并自动恢复，不需要频繁重启。
+
+日志会把失败明确标为 `discover_codex`、`spawn_app_server`、`initialize_request`、`initialized_notification`、`account_read`、`rate_limits_read` 或 `response_parse`，并保留脱敏后的原始异常、退出码、stderr 摘要与 JSON-RPC 错误。日志不会记录 token、Cookie、Authorization 或 session credential。
 
 ### weekly 或 credits 没显示
 

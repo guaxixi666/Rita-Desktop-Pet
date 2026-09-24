@@ -12,6 +12,8 @@ def send(message: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--error", action="store_true")
+    parser.add_argument("--exit-on-initialize", action="store_true")
+    parser.add_argument("--malformed", action="store_true")
     args = parser.parse_args()
     for line in sys.stdin:
         message = json.loads(line)
@@ -20,6 +22,16 @@ def main() -> int:
         request_id = message.get("id")
         method = message.get("method")
         if method == "initialize":
+            if args.exit_on_initialize:
+                print(
+                    "startup failed Authorization: Bearer secret-value",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                return 23
+            if args.malformed:
+                print("not-json", flush=True)
+                continue
             send({"id": request_id, "result": {"platformFamily": "windows"}})
         elif args.error:
             send({"id": request_id, "error": {"code": -32000, "message": "test error"}})

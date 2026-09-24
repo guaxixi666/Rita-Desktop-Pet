@@ -3,11 +3,13 @@ from __future__ import annotations
 import logging
 import threading
 import time
+import traceback
 
 from PySide6.QtCore import QObject, Signal
 
-from codex_usage_pet.codex.app_server_client import CodexAppServerClient
+from codex_usage_pet.codex.app_server_client import AppServerError, CodexAppServerClient
 from codex_usage_pet.codex.rate_limits import parse_account, parse_rate_limits
+from codex_usage_pet.services.logger import redact
 
 LOGGER = logging.getLogger(__name__)
 
@@ -67,8 +69,18 @@ class UsageService(QObject):
                 break
             last_attempt = time.monotonic()
             try:
-                account = parse_account(self._client.read_account())
-                snapshot = parse_rate_limits(self._client.read_rate_limits(), account)
+                account_payload = self._client.read_account()
+                rate_limits_payload = self._client.read_rate_limits()
+                try:
+                    account = parse_account(account_payload)
+                    snapshot = parse_rate_limits(rate_limits_payload, account)
+                except Exception as exc:
+                    raise AppServerError(
+                        "Unable to parse App Server usage response",
+                        stage="response_parse",
+                        original=exc,
+                    ) from exc
+                LOGGER.info("response_parse: OK")
                 failures = 0
                 self.usage_updated.emit(snapshot)
                 self.connection_changed.emit(True)
@@ -84,7 +96,8 @@ class UsageService(QObject):
                 failures += 1
                 self.connection_changed.emit(False)
                 self.read_failed.emit("暂时无法读取额度")
-                LOGGER.warning("Usage read failed: %s", type(exc).__name__)
+                safe_traceback = redact("".join(traceback.format_exception(exc)))
+                LOGGER.error("Usage read failed: %s\n%s", redact(str(exc)), safe_traceback)
                 delay = min(self._interval, 5 * (2 ** min(failures, 4)))
             self._wake.wait(delay)
             self._wake.clear()

@@ -8,7 +8,7 @@ Updated: 2026-09-24
 
 ## Final acceptance
 
-- Automated tests: **130 passed** with Qt offscreen; the release build repeats the full suite before packaging.
+- Automated tests: **136 passed** with Qt offscreen; the release build repeats the full suite before packaging.
 - Frozen EXE smoke test: exit code 0; completed a real App Server read; no new App Server process remained after exit.
 - Portable test: extracted into a new `%TEMP%` directory outside the source tree, completed a real App Server read, exited 0, and left no child process behind.
 - Live Codex App Server read: account type `chatgpt`, plan `plus`, Codex bucket, 5-hour and weekly windows, credits, and reset-credit count were returned.
@@ -111,6 +111,17 @@ Inno Setup 6 is not installed on this machine, so no installer executable was bu
 - Native Qt policy QA ran 60 selections each for Hover, Click, and Random Idle. Umbral Rose produced Hover/none/Blink = 24/13/23, Click/Wave/Tidy Hair/none = 22/13/17/8, and Wave/Tidy Hair/Blink/none = 10/20/19/11; the screen anchor stayed fixed at every selection. Evidence: `artifacts/action-policy-validation.json`.
 - Automated tests: **130 passed**, including selection diversity, unsupported/state filtering, cooldown, repeat avoidance, single/empty pools, `none`, user override/reset, per-Skin personality, custom action IDs, concise `action_pools` compatibility, state phase ordering, priority protection, and anchor preservation.
 - Rebuilt frozen EXE and portable ZIP both passed `--smoke-test` with exit code 0. A freshly extracted portable copy ran outside the source directory, left no App Server child process, and contained both Skin policies plus project/Qt license files.
+
+## App Server Explorer-launch repair
+
+- Reproduced the old frozen failure with an Explorer-equivalent restricted PATH: UI started and the log collapsed discovery failure to `Usage read failed: AppServerError`. In the same environment, `shutil.which("codex")`, `codex.exe`, and `codex.cmd` all returned `None` although Codex Desktop had installed a valid executable under the current user's `%LOCALAPPDATA%` tree.
+- Added structured `AppServerError` metadata and chaining for `discover_codex`, `spawn_app_server`, `initialize_request`, `initialized_notification`, `account_read`, `rate_limits_read`, and `response_parse`. Diagnostics retain original type/message, `__cause__`, exit code, redacted stderr, and JSON-RPC code/message.
+- Discovery now checks PATH plus Codex Desktop and common per-user npm launcher locations without hardcoding a username. Windows `.cmd` launchers use a hidden command shell and passed an integration test from a path containing spaces.
+- Source mode with PATH deliberately limited to Windows system directories discovered the Codex Desktop executable, completed every protocol stage, and read real data: 5h used 44%, weekly used 79% at 2026-09-24 09:43 +08:00.
+- Full automated suite: **136 passed**. Credential redaction now also covers `Authorization: Bearer ...` as one complete header value.
+- Rebuilt frozen mode with the same restricted PATH exited 0 and read 5h used 60% / weekly used 81%. Opening the EXE through the Windows Explorer Shell verb read 61% / 81%.
+- The existing Desktop shortcut was verified to target the rebuilt EXE with the correct working directory. Launched with no Codex directory in PATH, it discovered the per-user executable and read 5h used 62% / weekly used 82%.
+- The post-acceptance application log contained zero unredacted Bearer, Authorization, Cookie, access/refresh/session token, or session credential matches.
 
 ## Known limitations
 

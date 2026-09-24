@@ -7,22 +7,33 @@ from pathlib import Path
 
 from .paths import log_dir
 
-_SENSITIVE = re.compile(
-    r"(?i)(bearer\s+|authorization\s*[=:]\s*|cookie\s*[=:]\s*|"
-    r"access[_-]?token[=: ]+|refresh[_-]?token[=: ]+|"
-    r"session(?:[_-]?credential|[_-]?token)?[=: ]+)([^\s,;]+)"
+_SENSITIVE_PATTERNS = (
+    re.compile(r"(?i)\b(authorization\s*[=:]\s*)(?:bearer\s+)?([^\s,;]+)"),
+    re.compile(r"(?i)\b(cookie\s*[=:]\s*)([^\s,;]+)"),
+    re.compile(r"(?i)\b(bearer\s+)([^\s,;]+)"),
+    re.compile(
+        r"(?i)\b(access[_-]?token[=: ]+|refresh[_-]?token[=: ]+|"
+        r"session(?:[_-]?credential|[_-]?token)?[=: ]+)([^\s,;]+)"
+    ),
 )
 
 
 def redact(text: str) -> str:
-    return _SENSITIVE.sub(lambda match: match.group(1) + "[REDACTED]", text)
+    for pattern in _SENSITIVE_PATTERNS:
+        text = pattern.sub(lambda match: match.group(1) + "[REDACTED]", text)
+    return text
 
 
 class RedactingFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.msg = redact(str(record.msg))
         if record.args:
-            record.args = tuple(redact(str(value)) for value in record.args)
+            if isinstance(record.args, dict):
+                record.args = {
+                    key: redact(str(value)) for key, value in record.args.items()
+                }
+            else:
+                record.args = tuple(redact(str(value)) for value in record.args)
         return True
 
 
