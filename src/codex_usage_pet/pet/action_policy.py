@@ -10,23 +10,18 @@ from typing import Any
 from .states import PetState
 
 NONE_ACTION = "none"
+LEGACY_ACTION_ALIASES = {
+    "click": "surprised",
+    "hover": "smile",
+    "stretch": "tidy_hair",
+    "sit_transition": "sit",
+    "sleep_react": "sleepy",
+}
 
 
 class ActionEvent(str, Enum):
-    HOVER = "hover"
     CLICK = "click"
     IDLE_RANDOM = "idle_random"
-    RECOVERED = "recovered"
-    NORMAL_IDLE = "normal_idle"
-    LOW_ON_ENTER = "low_on_enter"
-    LOW_IDLE = "low_idle"
-    LOW_ON_EXIT = "low_on_exit"
-    CRITICAL_ON_ENTER = "critical_on_enter"
-    CRITICAL_IDLE = "critical_idle"
-    CRITICAL_ON_EXIT = "critical_on_exit"
-    EMPTY_ON_ENTER = "empty_on_enter"
-    EMPTY_IDLE = "empty_idle"
-    EMPTY_ON_EXIT = "empty_on_exit"
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,56 +76,26 @@ def _candidate(
 
 
 def default_action_policy() -> ActionPolicy:
-    normal = (PetState.NORMAL,)
-    low = (PetState.LOW,)
-    critical = (PetState.CRITICAL,)
-    empty = (PetState.EMPTY,)
-    recovered = (PetState.RECOVERED,)
     return ActionPolicy(
         pools={
-            ActionEvent.HOVER.value: (
-                _candidate("blink", 40, normal, (5_000, 15_000)),
-                _candidate("hover", 40, normal, (3_000, 8_000)),
-                _candidate(NONE_ACTION, 20, normal),
-            ),
             ActionEvent.CLICK.value: (
-                _candidate("click", 45, (PetState.NORMAL, PetState.LOW), (1_000, 2_000)),
-                _candidate("wave", 20, (PetState.NORMAL, PetState.LOW), (30_000, 90_000)),
-                _candidate("stretch", 20, (PetState.NORMAL, PetState.LOW), (60_000, 150_000)),
-                _candidate("sleep_react", 80, empty, (2_000, 5_000)),
-                _candidate(NONE_ACTION, 15, (PetState.NORMAL, PetState.LOW, PetState.EMPTY)),
+                _candidate("surprised", 30, cooldown=(1_000, 2_000)),
+                _candidate("smile", 25, cooldown=(2_000, 5_000)),
+                _candidate("wave", 18, cooldown=(30_000, 90_000)),
+                _candidate("tidy_hair", 14, cooldown=(60_000, 150_000)),
+                _candidate("sit", 6, cooldown=(90_000, 240_000)),
+                _candidate("sleepy", 4, cooldown=(120_000, 300_000)),
+                _candidate(NONE_ACTION, 3),
             ),
             ActionEvent.IDLE_RANDOM.value: (
-                _candidate("blink", 45, normal, (5_000, 15_000)),
-                _candidate("wave", 15, normal, (60_000, 180_000)),
-                _candidate("stretch", 25, normal, (90_000, 240_000)),
-                _candidate(NONE_ACTION, 15, normal),
+                _candidate("blink", 45, cooldown=(5_000, 15_000)),
+                _candidate("smile", 22, cooldown=(20_000, 60_000)),
+                _candidate("tidy_hair", 14, cooldown=(90_000, 240_000)),
+                _candidate("wave", 8, cooldown=(60_000, 180_000)),
+                _candidate("sit", 4, cooldown=(120_000, 300_000)),
+                _candidate("sleepy", 3, cooldown=(180_000, 420_000)),
+                _candidate(NONE_ACTION, 4),
             ),
-            ActionEvent.RECOVERED.value: (
-                _candidate("wave", 30, recovered),
-                _candidate("hover", 25, recovered),
-                _candidate("stretch", 35, recovered),
-                _candidate(NONE_ACTION, 10, recovered),
-            ),
-            ActionEvent.NORMAL_IDLE.value: (_candidate("idle", 100, normal),),
-            ActionEvent.LOW_ON_ENTER.value: (
-                _candidate("sit_transition", 80, low),
-                _candidate(NONE_ACTION, 20, low),
-            ),
-            ActionEvent.LOW_IDLE.value: (
-                _candidate("sit", 90, low),
-                _candidate("idle", 10, low),
-            ),
-            ActionEvent.LOW_ON_EXIT.value: (_candidate(NONE_ACTION, 100, low),),
-            ActionEvent.CRITICAL_ON_ENTER.value: (_candidate(NONE_ACTION, 100, critical),),
-            ActionEvent.CRITICAL_IDLE.value: (
-                _candidate("critical", 90, critical),
-                _candidate("sit", 10, critical),
-            ),
-            ActionEvent.CRITICAL_ON_EXIT.value: (_candidate(NONE_ACTION, 100, critical),),
-            ActionEvent.EMPTY_ON_ENTER.value: (_candidate(NONE_ACTION, 100, empty),),
-            ActionEvent.EMPTY_IDLE.value: (_candidate("sleep", 100, empty),),
-            ActionEvent.EMPTY_ON_EXIT.value: (_candidate(NONE_ACTION, 100, empty),),
         }
     )
 
@@ -210,7 +175,8 @@ class ActionSelector:
     ) -> None:
         self.policy = policy
         self.rng = rng or random.Random()
-        self.overrides = overrides or {}
+        self.overrides: dict[str, list[str]] = {}
+        self.set_overrides(overrides)
         self._cooldowns: dict[str, float] = {}
         self._history: deque[str] = deque(maxlen=policy.history_size)
 
@@ -223,7 +189,11 @@ class ActionSelector:
         self._history = deque(self._history, maxlen=policy.history_size)
 
     def set_overrides(self, overrides: dict[str, list[str]] | None) -> None:
-        self.overrides = overrides or {}
+        self.overrides = {
+            event: [LEGACY_ACTION_ALIASES.get(action, action) for action in actions]
+            for event, actions in (overrides or {}).items()
+            if event in {ActionEvent.CLICK.value, ActionEvent.IDLE_RANDOM.value}
+        }
 
     def choose(
         self,
@@ -244,8 +214,7 @@ class ActionSelector:
         candidates = [
             candidate
             for candidate in candidates
-            if (candidate.allowed_states is None or state in candidate.allowed_states)
-            and (candidate.action == NONE_ACTION or candidate.action in supported_actions)
+            if (candidate.action == NONE_ACTION or candidate.action in supported_actions)
             and (
                 not use_cooldown
                 or candidate.action == NONE_ACTION
@@ -290,37 +259,6 @@ class ActionSelector:
         if cooldown_ms > 0:
             self._cooldowns[candidate.action] = moment + cooldown_ms / 1000
         self._history.append(candidate.action)
-
-
-def persistent_event(state: PetState) -> ActionEvent:
-    return {
-        PetState.NORMAL: ActionEvent.NORMAL_IDLE,
-        PetState.LOW: ActionEvent.LOW_IDLE,
-        PetState.CRITICAL: ActionEvent.CRITICAL_IDLE,
-        PetState.EMPTY: ActionEvent.EMPTY_IDLE,
-        PetState.RECOVERED: ActionEvent.NORMAL_IDLE,
-    }[state]
-
-
-def enter_event(state: PetState) -> ActionEvent | None:
-    return {
-        PetState.NORMAL: None,
-        PetState.LOW: ActionEvent.LOW_ON_ENTER,
-        PetState.CRITICAL: ActionEvent.CRITICAL_ON_ENTER,
-        PetState.EMPTY: ActionEvent.EMPTY_ON_ENTER,
-        PetState.RECOVERED: ActionEvent.RECOVERED,
-    }[state]
-
-
-def exit_event(state: PetState) -> ActionEvent | None:
-    return {
-        PetState.NORMAL: None,
-        PetState.LOW: ActionEvent.LOW_ON_EXIT,
-        PetState.CRITICAL: ActionEvent.CRITICAL_ON_EXIT,
-        PetState.EMPTY: ActionEvent.EMPTY_ON_EXIT,
-        PetState.RECOVERED: None,
-    }[state]
-
 
 def _bounded_int(value: Any, default: int, low: int, high: int) -> int:
     try:

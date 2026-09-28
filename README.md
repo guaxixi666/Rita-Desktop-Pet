@@ -176,27 +176,27 @@ py -3.12 -m venv .venv
 
 ### 动作池与角色性格
 
-动作选择链路为“事件/状态 → Skin Policy → 用户启用项 → 状态、素材与 cooldown 过滤 → 加权选择 → 动画播放器”。支持 `hover`、`click`、`idle_random`、`recovered`、`normal_idle`，以及 LOW / CRITICAL / EMPTY 各自的 `*_on_enter`、`*_idle`、`*_on_exit`。`none` 是合法候选，表示本次保持安静；过滤后为空也会安全回到基础姿态。两套内置 Rita Skin 的默认 Hover/Click 池不再包含 `none`，因此一次真实悬停或点击一定会产生可见反馈；Random Idle 与状态过渡仍可按 Skin 个性保持安静。
+人物动作与 Codex 额度完全解耦。额度的 NORMAL / LOW / CRITICAL / EMPTY / RECOVERED 判定只改变气泡文字、进度条和提示色，不再切换、锁定或过滤人物姿态。人物长期基础姿态始终为 `idle`，普通动作统一遵循 `idle → action → idle`。
 
-`cooldown` 使用毫秒，可写单个数或 `[min, max]`；`allowed_states` 限制动作出现的额度状态。最近 3 次已播放动作只保留在当前运行 session 中，默认避免立即重复；候选只有一个时仍允许重复。系统状态动作、Click、Hover、随机待机和 idle 的优先级依次降低，优先级只决定哪类事件可播放，具体动作仍由池选择。
+当前只有两个动作来源：点击人物的 `click` 与 45～150 秒触发一次的 `idle_random`。Hover、Mouse Enter、额度进入/持续/退出和 recovered 动作均已停用。选择器只检查 Skin 是否提供素材、cooldown、当前播放锁和用户启用项；保留在 manifest schema 中的 `allowed_states` 仅用于旧 Skin 解析兼容，不参与这两个运行时池的筛选。
 
-用户可右键选择“互动设置”，在全中文卡片页中分别启用或禁用当前皮肤的鼠标悬停、点击人物、随机待机、额度较低、额度紧张、额度耗尽与额度恢复候选，也可恢复当前皮肤默认值。安静模式只在运行时暂停悬停和随机待机，点击与额度状态仍照常工作，关闭后原动作配置自动恢复。覆盖配置按 Skin ID 独立保存，不改写 `skin.json`；底层事件和动作 ID 始终保持英文。Skin 可在 `states` 中声明新的动作 ID，并在池中直接引用；没有对应素材的候选会自动过滤。
+用户可右键选择“互动设置”，页面只显示“点击互动”和“随机待机”两个区域。安静模式只暂停随机待机，点击始终可用。覆盖配置按 Skin ID 独立保存，不改写 `skin.json`；旧配置中的 `click` / `hover` / `stretch` / `sit_transition` / `sleep_react` 动作 ID 会迁移到新的兼容别名。
 
-动画可使用连续帧数或显式 `frames` 坐标，并声明 `fps`、`frame_durations_ms`、`loop`、`cooldown` 和 `interruptible`。逐帧时长存在时优先于 FPS，可用于准备、停顿和恢复节奏。播放器首次使用时缓存帧，切换皮肤会释放旧帧缓存；idle 没有逐帧定时器。`preferred_width` / `preferred_height` 控制角色绘制尺寸。播放器在皮肤加载/重载时扫描一次所有帧，以每帧底部接触中心归一化到统一 logical canvas，再取全动作 alpha Union Bounds 加 4 px 安全边距作为整个 Skin 生命周期内不变的窗口范围；动画播放不再 resize、adjustSize 或移动人物窗口。除 idle 外的状态都是可选项；缺少互动动画时保持基础姿态，critical 仍优先回退 sit，再回退 idle。
+动画可使用连续帧数或显式 `frames` 坐标，并声明 `fps`、`frame_durations_ms`、`loop`、`cooldown` 和 `interruptible`。逐帧时长优先于 FPS，用于准备、停顿和恢复节奏。`animation_busy` 只在实际播放期间为真，最后一帧后立即释放并回 `idle`。播放器仍使用全 Skin Union Bounds 和统一脚底锚点，因此动作切换不会移动人物窗口。
 
 内置 Rita 动画参数：
 
 | 动作 | 帧数 | FPS | 时长 | 循环 |
 | --- | ---: | ---: | ---: | --- |
 | Blink | 6 | 20 | 600 ms | 否 |
-| Hover | 6 | 24 | 1100 ms | 否 |
-| Click | 8 | 24 | 1500 ms | 否 |
+| Smile | 6 | 24 | 1100 ms | 否 |
+| Surprised | 8 | 24 | 1500 ms | 否 |
 | Wave | 8 | 24 | 2400 ms | 否 |
-| Tidy Hair（兼容 `stretch` 状态） | 12 | 24 | 2920 ms | 否 |
-| Sleep React | 8 | 20 | 2400 ms | 否 |
-| Sit Transition | 10 | 24 | 1600 ms | 否 |
+| Tidy Hair | 12 | 24 | 2920 ms | 否 |
+| Sit | 20 | 24 | 4560 ms | 否 |
+| Sleepy | 16 | 24 | 4540 ms | 否 |
 
-内置 Umbral Rose 的 LOW 默认偏向 Sit Transition 与坐姿，但这些只是可替换的 Skin 默认策略；CRITICAL、EMPTY 与 RECOVERED 同样经各自动作池选择。CRITICAL 和 EMPTY 的内置候选使用专门绘制的疲惫与睡眠姿态，不通过缩放、旋转或整图平移伪造动作；EMPTY 点击池可选择 Sleep React 后回到持续姿态。
+Sit 包含坐下、约 1.5 秒停留和起身；Sleepy 包含犯困、坐卧停留和醒来。两者都属于低权重一次性动作，不修改全局人物状态。Click Pool 为 Surprised、Smile、Wave、Tidy Hair、Sit、Sleepy 和 `none`；Random Idle Pool 为 Blink、Smile、Tidy Hair、Wave、Sit、Sleepy 和 `none`，并保留最近 3 次防重复。
 
 内置皮肤：
 
@@ -225,7 +225,7 @@ $env:QT_QPA_PLATFORM = "offscreen"
 .\.venv\Scripts\python.exe main.py --smoke-test
 ```
 
-测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置损坏、日志凭据脱敏、开机启动、Skin Pack 扫描与 fallback、手动/随机/定时换肤、重启续时、固定时间、热加载、自定义动作 ID、动作池权重/过滤/cooldown/防重复/none/用户覆盖、状态进入/持续/退出、动作优先级、状态保持、统一 logical canvas、全 Skin Union Bounds、逐帧顺序与时长优先级、hold frame、帧缓存与释放、窗口 geometry、脚底 0 px anchor、安静模式、中文映射安全 fallback、气泡跟随，以及反复显隐时人物 0 像素漂移。
+测试覆盖正常响应、服务不可用、JSON-RPC 错误、字段缺失、5h/weekly 映射、0/100%、remaining 方向、Unix 秒/毫秒时间戳、reset 状态变化、子进程清理、配置与日志安全、启动项与快捷方式、Skin Pack、窗口 geometry，以及新的动作解耦约束：100/50/10/0% 均不改变人物动画、任意额度均可 Click/Random Idle、Sit/Sleepy 真实 QTimer 完成后回 idle 并释放 busy、动作时长/hold、用户覆盖、cooldown、防重复和脚底 0 px anchor。
 
 动画回归诊断可运行：
 

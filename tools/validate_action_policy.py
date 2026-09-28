@@ -39,7 +39,6 @@ def main() -> int:
     outcomes: dict[str, Counter[str]] = {}
 
     for event_index, (event, priority) in enumerate((
-        (ActionEvent.HOVER, window.pet.PRIORITY_HOVER),
         (ActionEvent.CLICK, window.pet.PRIORITY_CLICK),
         (ActionEvent.IDLE_RANDOM, window.pet.PRIORITY_IDLE),
     )):
@@ -62,6 +61,9 @@ def main() -> int:
 
     report = {
         "skin": window.current_skin.id,
+        "events": [ActionEvent.CLICK.value, ActionEvent.IDLE_RANDOM.value],
+        "hover_enabled": False,
+        "quota_state_filtering": False,
         "iterations_per_event": 60,
         "anchor": [anchor.x(), anchor.y()],
         "anchor_preserved": window.pet_anchor == anchor,

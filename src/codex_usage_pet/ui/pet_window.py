@@ -7,7 +7,7 @@ from PySide6.QtGui import QAction, QActionGroup, QCursor, QGuiApplication
 from PySide6.QtWidgets import QApplication, QInputDialog, QMenu, QMessageBox, QToolTip, QWidget
 
 from codex_usage_pet.codex.models import UsageSnapshot
-from codex_usage_pet.pet.states import PetState, PetStateTracker, state_for_remaining
+from codex_usage_pet.pet.states import PetState, PetStateTracker
 from codex_usage_pet.services.desktop_shortcut import DesktopShortcutManager
 from codex_usage_pet.services.paths import log_dir
 from codex_usage_pet.services.settings import AppSettings, SettingsStore
@@ -111,7 +111,6 @@ class PetWindow(QWidget):
         self._snapshot = snapshot
         self.bubble.set_snapshot(snapshot)
         state = self._state_tracker.update(snapshot.remaining_percent)
-        self.pet.set_state(state)
         self.bubble.set_state(state)
         message = {
             PetState.NORMAL: "",
@@ -121,8 +120,6 @@ class PetWindow(QWidget):
             PetState.RECOVERED: "额度恢复啦 ♡",
         }[state]
         self.bubble.set_pet_message(message)
-        if state is PetState.RECOVERED:
-            QTimer.singleShot(max(850, self.pet.current_animation_duration_ms + 100), self._finish_recovered)
 
     def set_error(self, text: str) -> None:
         self.bubble.set_error(text)
@@ -592,11 +589,3 @@ class PetWindow(QWidget):
         y = self._anchor.y() - self.bubble.height()
         y = max(area.top(), min(y, area.bottom() - self.bubble.height() + 1))
         self.bubble.move(x, y)
-
-    def _finish_recovered(self) -> None:
-        if self._snapshot:
-            state = state_for_remaining(self._snapshot.remaining_percent)
-            self.pet.set_state(state)
-            self.bubble.set_state(state)
-            if state is PetState.NORMAL:
-                self.bubble.set_pet_message("")

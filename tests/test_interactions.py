@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -59,20 +60,17 @@ def test_idle_does_not_move_screen_position(app, tmp_path: Path) -> None:
     window.deleteLater()
 
 
-def test_hover_action_preserves_anchor(app, tmp_path: Path) -> None:
+def test_hover_is_disabled_and_preserves_anchor(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
-    window.pet.set_action_overrides({"hover": ["hover"]})
     before = window.pet_anchor
-    assert window.pet.play_hover_reaction(now=10.0)
-    assert window.pet_anchor == before
-    window.pet._finish_action()
+    assert not window.pet.play_hover_reaction(now=10.0)
     assert window.pet_anchor == before
     window.deleteLater()
 
 
 def test_click_action_preserves_anchor(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
-    window.pet.set_action_overrides({"click": ["click"]})
+    window.pet.set_action_overrides({"click": ["surprised"]})
     before = window.pet_anchor
     assert window.pet.play_click_reaction(now=10.0)
     assert window.pet_anchor == before
@@ -165,39 +163,24 @@ def test_missing_click_animation_only_skips_reaction(app, tmp_path: Path) -> Non
     widget.deleteLater()
 
 
-@pytest.mark.parametrize(
-    ("state", "activity"),
-    [
-        (PetState.LOW, PetActivity.SIT),
-        (PetState.CRITICAL, PetActivity.CRITICAL),
-        (PetState.EMPTY, PetActivity.SLEEP),
-    ],
-)
-def test_quota_states_are_not_overridden_by_idle_actions(
-    app, tmp_path: Path, state: PetState, activity: PetActivity
-) -> None:
+@pytest.mark.parametrize("state", list(PetState))
+def test_quota_states_do_not_lock_random_idle(app, tmp_path: Path, state: PetState) -> None:
     window = _window(tmp_path)
     window.pet.set_state(state)
+    window.pet.set_action_overrides({"idle_random": ["blink"]})
+    window.pet.action_selector.policy = replace(
+        window.pet.action_selector.policy, idle_trigger_probability=1.0
+    )
     window.pet._run_idle_action()
-    if state is PetState.LOW:
-        if window.pet.activity is PetActivity.SIT_TRANSITION:
-            for _ in range(window.pet.skin.asset_for(PetActivity.SIT_TRANSITION).frame_count):
-                window.pet._advance_frame()
-        assert window.pet.activity in {PetActivity.SIT, PetActivity.IDLE}
-    elif state is PetState.CRITICAL:
-        assert window.pet.activity in {PetActivity.CRITICAL, PetActivity.SIT}
-    else:
-        assert window.pet.activity is activity
-    assert window.pet._action_activity is None
+    assert window.pet.activity is PetActivity.BLINK
+    assert window.pet._action_activity is PetActivity.BLINK
     window.deleteLater()
 
 
-def test_sleep_never_randomly_stretches(app, tmp_path: Path) -> None:
+def test_empty_quota_stays_idle_until_normal_random_action(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
     window.pet.set_state(PetState.EMPTY)
-    for _ in range(10):
-        window.pet._run_idle_action()
-    assert window.pet.activity is PetActivity.SLEEP
+    assert window.pet.activity is PetActivity.IDLE
     window.deleteLater()
 
 
@@ -211,7 +194,7 @@ def test_random_idle_timer_interval_is_in_requested_range(app, tmp_path: Path) -
 
 def test_click_cooldown_blocks_repeated_action(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
-    window.pet.set_action_overrides({"click": ["click"]})
+    window.pet.set_action_overrides({"click": ["surprised"]})
     assert window.pet.play_click_reaction(now=10.0)
     window.pet._finish_action()
     assert not window.pet.play_click_reaction(now=10.5)
@@ -219,24 +202,21 @@ def test_click_cooldown_blocks_repeated_action(app, tmp_path: Path) -> None:
     window.deleteLater()
 
 
-def test_click_preempts_hover_and_returns_to_base_pose(app, tmp_path: Path) -> None:
+def test_sit_finishes_then_click_starts_immediately(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
-    window.pet.set_action_overrides({"hover": ["hover"], "click": ["click"]})
-    assert window.pet.play_hover_reaction(now=10.0)
-    assert window.pet.activity is PetActivity.HOVER
-    assert window.pet.play_click_reaction(now=10.1)
-    assert window.pet.activity is PetActivity.CLICK
-    window.pet._finish_action()
+    window.pet.set_action_overrides({"click": ["wave"]})
+    assert window.pet.play_action("sit")
+    for _ in range(window.pet.skin.asset_for("sit").frame_count):
+        window.pet._advance_frame()
     assert window.pet.activity is PetActivity.IDLE
+    assert window.pet._action_activity is None
+    assert window.pet.play_click_reaction(now=10.1)
+    assert window.pet.activity is PetActivity.WAVE
     window.deleteLater()
 
 
-def test_hover_only_fires_once_while_pointer_remains(app, tmp_path: Path) -> None:
+def test_hover_remains_disabled_after_pointer_reentry(app, tmp_path: Path) -> None:
     window = _window(tmp_path)
-    window.pet.set_action_overrides({"hover": ["hover"]})
-    assert window.pet.play_hover_reaction(now=10.0)
     assert not window.pet.play_hover_reaction(now=10.1)
-    window.pet._finish_action()
     assert not window.pet.play_hover_reaction(now=10.5)
-    assert window.pet.play_hover_reaction(now=19.0)
     window.deleteLater()

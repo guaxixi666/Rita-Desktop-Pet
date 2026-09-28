@@ -286,7 +286,7 @@ def test_rescan_hot_loads_new_folder(tmp_path: Path) -> None:
     ("used", "expected"),
     [(20, PetState.NORMAL), (75, PetState.LOW), (95, PetState.CRITICAL), (100, PetState.EMPTY)],
 )
-def test_ui_skin_switch_preserves_quota_state(
+def test_ui_skin_switch_preserves_bubble_state_without_changing_pet(
     app: QApplication, tmp_path: Path, used: int, expected: PetState
 ) -> None:
     settings = AppSettings()
@@ -300,7 +300,9 @@ def test_ui_skin_switch_preserves_quota_state(
     window.change_skin("rita_moonlit_rose")
     window._skin_fade_out.stop()
     window._finish_skin_swap()
-    assert window.pet.state is expected
+    assert window.bubble._state is expected
+    assert window.pet.state is PetState.NORMAL
+    assert window.pet.activity is PetActivity.IDLE
     assert window.current_skin.id == "rita_moonlit_rose"
     assert window.bubble._theme.primary == window.current_skin.theme.primary
     window.deleteLater()

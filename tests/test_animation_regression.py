@@ -105,10 +105,9 @@ def test_quiet_mode_does_not_block_direct_animation_test(app) -> None:
 
 
 @pytest.mark.parametrize("skin_id", ["rita_umbral_rose", "rita_moonlit_rose"])
-def test_default_hover_and_click_pools_always_offer_visible_actions(app, skin_id: str) -> None:
+def test_only_click_and_idle_pools_are_exposed(app, skin_id: str) -> None:
     skin = _skin(skin_id)
-    for event in (ActionEvent.HOVER, ActionEvent.CLICK):
-        assert all(candidate.action != NONE_ACTION for candidate in skin.action_policy.pool(event))
+    assert set(skin.action_policy.pools) == {ActionEvent.CLICK.value, ActionEvent.IDLE_RANDOM.value}
 
 
 def test_real_pet_click_event_starts_animation_without_geometry_drift(app, tmp_path: Path) -> None:
@@ -117,7 +116,7 @@ def test_real_pet_click_event_starts_animation_without_geometry_drift(app, tmp_p
         SettingsStore(tmp_path / "settings.json"),
         StartupManager(registry=None),
     )
-    window.pet.set_action_overrides({"click": ["click"]})
+    window.pet.set_action_overrides({"click": ["surprised"]})
     window.show()
     app.processEvents()
     before = (window.pos(), window.size(), window.pet.current_foot_anchor)
@@ -127,7 +126,7 @@ def test_real_pet_click_event_starts_animation_without_geometry_drift(app, tmp_p
         Qt.KeyboardModifier.NoModifier,
         QPoint(window.pet.width() // 2, window.pet.height() // 2),
     )
-    assert window.pet.activity is PetActivity.CLICK
+    assert window.pet.activity == "surprised"
     assert window.pet._frame_timer.isActive()
     QTest.qWait(190)
     assert window.pet._frame_index >= 1

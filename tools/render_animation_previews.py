@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
 
 from PIL import Image, ImageDraw
 from PySide6.QtCore import QPoint
@@ -17,18 +20,17 @@ from codex_usage_pet.skins.loader import SkinRepository
 from codex_usage_pet.ui.pet_widget import PetWidget
 
 
-ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "artifacts" / "animations"
 CANVAS = (280, 280)
 ANCHOR = QPoint(CANVAS[0] // 2, CANVAS[1] - 12)
 ACTIONS = (
-    (PetActivity.BLINK, "blink"),
-    (PetActivity.HOVER, "hover"),
-    (PetActivity.CLICK, "click"),
-    (PetActivity.WAVE, "wave"),
-    (PetActivity.STRETCH, "tidy-hair"),
-    (PetActivity.SLEEP_REACT, "sleep-react"),
-    (PetActivity.SIT_TRANSITION, "sit-transition"),
+    ("blink", "blink"),
+    ("smile", "smile"),
+    ("surprised", "surprised"),
+    ("wave", "wave"),
+    ("tidy_hair", "tidy-hair"),
+    ("sit", "sit"),
+    ("sleepy", "sleepy"),
 )
 
 
@@ -45,7 +47,7 @@ def _to_pillow(image: QImage) -> Image.Image:
     ).copy()
 
 
-def _render_frames(widget: PetWidget, activity: PetActivity) -> list[Image.Image]:
+def _render_frames(widget: PetWidget, activity: PetActivity | str) -> list[Image.Image]:
     asset = widget.skin.asset_for(activity)
     widget.activity = activity
     rendered: list[Image.Image] = []

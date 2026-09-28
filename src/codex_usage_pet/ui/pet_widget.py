@@ -13,11 +13,8 @@ from codex_usage_pet.pet.action_policy import (
     ActionDecision,
     ActionEvent,
     ActionSelector,
-    enter_event,
-    exit_event,
-    persistent_event,
 )
-from codex_usage_pet.pet.animator import PetActivity, PetBehaviorController
+from codex_usage_pet.pet.animator import PetActivity
 from codex_usage_pet.pet.states import PetState
 from codex_usage_pet.skins.models import SkinPack, SkinStateAsset
 
@@ -63,7 +60,6 @@ class PetWidget(QWidget):
     POST_ACTION_IDLE_MIN_MS = 15_000
     POST_ACTION_IDLE_MAX_MS = 30_000
     PRIORITY_IDLE = 1
-    PRIORITY_HOVER = 2
     PRIORITY_CLICK = 3
     PRIORITY_SYSTEM = 4
 
@@ -80,7 +76,6 @@ class PetWidget(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_Hover)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.state = PetState.NORMAL
-        self.behavior = PetBehaviorController()
         self.activity = PetActivity.IDLE
         self.skin = skin
         self._rng = rng or random.Random()
@@ -108,7 +103,6 @@ class PetWidget(QWidget):
         self._right_extent = self.CANVAS_WIDTH / 2
         self._action_activity: PetActivity | str | None = None
         self._action_priority = 0
-        self._pending_system_decisions: list[tuple[ActionDecision, PetState]] = []
         self._frame_index = 0
         self._quiet_mode = False
 
@@ -153,6 +147,10 @@ class PetWidget(QWidget):
         return self.skin.asset_for(self.activity).duration_ms
 
     @property
+    def animation_busy(self) -> bool:
+        return self._action_activity is not None
+
+    @property
     def visual_extents(self) -> tuple[int, int]:
         """Maximum visible pixels left/right of the shared screen anchor."""
         return math.ceil(self._left_extent), math.ceil(self._right_extent)
@@ -175,8 +173,10 @@ class PetWidget(QWidget):
         # released on the next skin change.
         self._frame_cache.clear()
         self._frame_index = 0
-        base = self._choose_base_pose(self.state)
-        self.activity = self.behavior.set_quota_state(self.state, base)
+        self._action_timer.stop()
+        self._action_activity = None
+        self._action_priority = 0
+        self.activity = PetActivity.IDLE
         self._prepare_visual()
         self._start_frame_timer()
         self._update_tooltip()
@@ -189,44 +189,12 @@ class PetWidget(QWidget):
         self._quiet_mode = bool(enabled)
 
     def set_state(self, state: PetState) -> None:
-        previous = self.state
-        changed = state is not previous
-        if not changed:
-            return
+        """Retain quota metadata for compatibility without changing animation."""
         self.state = state
-        self._action_timer.stop()
-        self._frame_timer.stop()
-        self._action_activity = None
-        self._action_priority = 0
-        self._pending_system_decisions.clear()
-        base = self._choose_base_pose(state)
-        self.activity = self.behavior.set_quota_state(state, base)
-        self._frame_index = 0
-        self._prepare_visual()
-        self._start_frame_timer()
         self._update_tooltip()
-        outgoing = exit_event(previous)
-        incoming = enter_event(state)
-        if outgoing is not None:
-            self._pending_system_decisions.append(
-                (self._choose(outgoing, previous, use_cooldown=False), previous)
-            )
-        if incoming is not None:
-            self._pending_system_decisions.append(
-                (self._choose(incoming, state, use_cooldown=False), state)
-            )
-        self._play_next_system_decision()
-        self._transition.stop()
-        self._transition.setStartValue(0.58)
-        self._transition.setEndValue(1.0)
-        self._transition.start()
-        self.update()
 
     def play_hover_reaction(self, now: float | None = None) -> bool:
-        if getattr(self, "_quiet_mode", False):
-            return False
-        decision = self._choose(ActionEvent.HOVER, self.state, now=now)
-        return self._start_decision(decision, self.PRIORITY_HOVER, now)
+        return False
 
     def play_click_reaction(self, now: float | None = None) -> bool:
         decision = self._choose(ActionEvent.CLICK, self.state, now=now)
@@ -242,16 +210,15 @@ class PetWidget(QWidget):
         return self._start_action(resolved, priority=self.PRIORITY_SYSTEM)
 
     def enterEvent(self, event: QEvent) -> None:
-        self.play_hover_reaction()
         super().enterEvent(event)
 
     def leaveEvent(self, event: QEvent) -> None:
         super().leaveEvent(event)
 
     def _advance(self) -> None:
-        """Compatibility hook: restore the quota-driven base pose without motion."""
+        """Compatibility hook: restore the one universal idle pose."""
         if self._action_activity is None:
-            self.activity = self.behavior.advance()
+            self.activity = PetActivity.IDLE
             self._prepare_visual()
             self.update()
 
@@ -296,7 +263,7 @@ class PetWidget(QWidget):
         finished = self._action_activity
         self._action_activity = None
         self._action_priority = 0
-        self.activity = self.behavior.advance()
+        self.activity = PetActivity.IDLE
         self._frame_index = 0
         self._prepare_visual()
         self._start_frame_timer()
@@ -306,9 +273,6 @@ class PetWidget(QWidget):
             finished.value if isinstance(finished, PetActivity) else finished,
             self.activity.value if isinstance(self.activity, PetActivity) else self.activity,
         )
-        if self._pending_system_decisions:
-            self._play_next_system_decision()
-            return
         self._idle_timer.start(
             self._rng.randint(self.POST_ACTION_IDLE_MIN_MS, self.POST_ACTION_IDLE_MAX_MS)
         )
@@ -325,7 +289,6 @@ class PetWidget(QWidget):
         try:
             if (
                 not getattr(self, "_quiet_mode", False)
-                and self.state is PetState.NORMAL
                 and self._action_activity is None
             ):
                 if self._rng.random() < self.action_selector.policy.idle_trigger_probability:
@@ -352,17 +315,6 @@ class PetWidget(QWidget):
             avoid_repeat=avoid_repeat,
         )
 
-    def _choose_base_pose(self, state: PetState) -> PetActivity | str:
-        decision = self._choose(
-            persistent_event(state),
-            state,
-            use_cooldown=False,
-            avoid_repeat=False,
-        )
-        if decision.action is None:
-            return PetActivity.IDLE
-        return self._resolve_activity(decision.action)
-
     def _start_decision(
         self, decision: ActionDecision, priority: int, now: float | None = None
     ) -> bool:
@@ -384,12 +336,6 @@ class PetWidget(QWidget):
             fallback_cooldown_ms=asset.cooldown_ms,
         )
         return True
-
-    def _play_next_system_decision(self) -> None:
-        while self._pending_system_decisions:
-            decision, _selection_state = self._pending_system_decisions.pop(0)
-            if self._start_decision(decision, self.PRIORITY_SYSTEM):
-                return
 
     def _resolve_activity(self, action: str) -> PetActivity | str:
         resolved = self.skin.resolve_activity(action)
@@ -595,9 +541,5 @@ class PetWidget(QWidget):
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "皮肤素材不可用")
             return
         painter.save()
-        if self.state is PetState.EMPTY:
-            painter.setOpacity(0.72)
-        elif self.state is PetState.CRITICAL:
-            painter.setOpacity(0.88)
         painter.drawPixmap(self._target, pixmap, self._source)
         painter.restore()

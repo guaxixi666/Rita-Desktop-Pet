@@ -31,42 +31,24 @@
     "avoid_immediate_repeat": true,
     "history_size": 3,
     "pools": {
-      "hover": [
-        {"action": "hover", "weight": 45, "cooldown": [3000, 8000], "allowed_states": ["normal"]},
-        {"action": "blink", "weight": 35, "cooldown": [5000, 15000], "allowed_states": ["normal"]}
-      ],
       "click": [
-        {"action": "click", "weight": 40, "cooldown": [1000, 2500], "allowed_states": ["normal", "low"]},
-        {"action": "wave", "weight": 20, "cooldown": [30000, 90000], "allowed_states": ["normal", "low"]},
-        {"action": "stretch", "weight": 30, "cooldown": [60000, 150000], "allowed_states": ["normal", "low"]},
-        {"action": "sleep_react", "weight": 80, "cooldown": [2000, 5000], "allowed_states": ["empty"]}
+        {"action": "surprised", "weight": 30, "cooldown": [1000, 2500]},
+        {"action": "smile", "weight": 25, "cooldown": [2000, 5000]},
+        {"action": "wave", "weight": 18, "cooldown": [30000, 90000]},
+        {"action": "tidy_hair", "weight": 14, "cooldown": [60000, 150000]},
+        {"action": "sit", "weight": 6, "cooldown": [90000, 240000]},
+        {"action": "sleepy", "weight": 4, "cooldown": [120000, 300000]},
+        {"action": "none", "weight": 3}
       ],
       "idle_random": [
-        {"action": "blink", "weight": 40, "cooldown": [5000, 15000], "allowed_states": ["normal"]},
-        {"action": "wave", "weight": 12, "cooldown": [60000, 180000], "allowed_states": ["normal"]},
-        {"action": "stretch", "weight": 33, "cooldown": [90000, 240000], "allowed_states": ["normal"]},
-        {"action": "none", "weight": 15, "allowed_states": ["normal"]}
-      ],
-      "recovered": [
-        {"action": "wave", "weight": 30, "allowed_states": ["recovered"]},
-        {"action": "hover", "weight": 20, "allowed_states": ["recovered"]},
-        {"action": "stretch", "weight": 45, "allowed_states": ["recovered"]},
-        {"action": "none", "weight": 5, "allowed_states": ["recovered"]}
-      ],
-      "low_on_enter": [
-        {"action": "sit_transition", "weight": 80, "allowed_states": ["low"]},
-        {"action": "none", "weight": 20, "allowed_states": ["low"]}
-      ],
-      "low_idle": [
-        {"action": "sit", "weight": 90, "allowed_states": ["low"]},
-        {"action": "idle", "weight": 10, "allowed_states": ["low"]}
-      ],
-      "low_on_exit": [{"action": "none", "weight": 100, "allowed_states": ["low"]}],
-      "critical_idle": [
-        {"action": "critical", "weight": 90, "allowed_states": ["critical"]},
-        {"action": "sit", "weight": 10, "allowed_states": ["critical"]}
-      ],
-      "empty_idle": [{"action": "sleep", "weight": 100, "allowed_states": ["empty"]}]
+        {"action": "blink", "weight": 45, "cooldown": [5000, 15000]},
+        {"action": "smile", "weight": 22, "cooldown": [20000, 60000]},
+        {"action": "tidy_hair", "weight": 14, "cooldown": [90000, 240000]},
+        {"action": "wave", "weight": 8, "cooldown": [60000, 180000]},
+        {"action": "sit", "weight": 4, "cooldown": [120000, 300000]},
+        {"action": "sleepy", "weight": 3, "cooldown": [180000, 420000]},
+        {"action": "none", "weight": 4}
+      ]
     }
   },
   "states": {
@@ -76,7 +58,11 @@
     "click": {"source": "animations/click.png", "grid": [4, 2], "frames": 8, "fps": 24, "frame_durations_ms": [160, 140, 160, 240, 280, 220, 160, 140], "loop": false, "cooldown": 1000, "interruptible": false},
     "wave": {"source": "animations/wave.png", "grid": [4, 2], "frames": 8, "fps": 24, "frame_durations_ms": [260, 220, 220, 320, 420, 360, 320, 280], "loop": false, "interruptible": true},
     "walk": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [1, 0]},
-    "sit": {"source": "animations/sit_transition.png", "grid": [5, 2], "cell": [4, 1]},
+    "smile": {"source": "animations/hover.png", "grid": [3, 2], "frames": 6, "fps": 24, "frame_durations_ms": [180, 160, 180, 240, 180, 160], "loop": false, "cooldown": 1500, "interruptible": true},
+    "surprised": {"source": "animations/click.png", "grid": [4, 2], "frames": 8, "fps": 24, "frame_durations_ms": [160, 140, 160, 240, 280, 220, 160, 140], "loop": false, "cooldown": 1000, "interruptible": false},
+    "tidy_hair": {"source": "animations/tidy_hair.png", "grid": [4, 3], "frames": 12, "fps": 24, "frame_durations_ms": [240, 180, 180, 180, 180, 320, 420, 320, 260, 240, 220, 180], "loop": false, "interruptible": true},
+    "sit": {"source": "animations/sit_transition.png", "grid": [5, 2], "frames": [[0,0],[1,0],[2,0],[3,0],[4,0],[0,1],[1,1],[2,1],[3,1],[4,1],[4,1],[3,1],[2,1],[1,1],[0,1],[4,0],[3,0],[2,0],[1,0],[0,0]], "fps": 24, "frame_durations_ms": [140,140,140,160,180,220,180,160,140,140,1500,140,160,180,220,180,160,140,140,140], "loop": false, "interruptible": false},
+    "sleepy": {"source": "animations/sleepy.png", "grid": [4, 4], "frames": 16, "fps": 24, "frame_durations_ms": [180,180,200,220,240,300,250,250,1200,250,250,240,220,200,180,180], "loop": false, "interruptible": false},
     "sit_transition": {"source": "animations/sit_transition.png", "grid": [5, 2], "frames": 10, "fps": 24, "frame_durations_ms": [140, 140, 140, 160, 180, 220, 180, 160, 140, 140], "loop": false, "interruptible": false},
     "stretch": {"source": "animations/tidy_hair.png", "grid": [4, 3], "frames": 12, "fps": 24, "frame_durations_ms": [240, 180, 180, 180, 180, 320, 420, 320, 260, 240, 220, 180], "loop": false, "interruptible": true},
     "critical": {"file": "rita_sprite_sheet.png", "grid": [3, 2], "cell": [1, 1]},

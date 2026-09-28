@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -72,7 +73,7 @@ def test_idle_blink_frame_renders_without_paint_error(app, tmp_path: Path) -> No
     window.deleteLater()
 
 
-def test_snapshot_updates_bubble_and_pet_state(app, tmp_path: Path) -> None:
+def test_snapshot_updates_bubble_without_changing_pet_animation(app, tmp_path: Path) -> None:
     window = make_window(tmp_path)
     snapshot = parse_rate_limits(
         {
@@ -83,8 +84,9 @@ def test_snapshot_updates_bubble_and_pet_state(app, tmp_path: Path) -> None:
         }
     )
     window.set_snapshot(snapshot)
-    assert window.pet.state is PetState.CRITICAL
-    assert window.pet.activity in {PetActivity.CRITICAL, PetActivity.SIT}
+    assert window.pet.state is PetState.NORMAL
+    assert window.pet.activity is PetActivity.IDLE
+    assert window.bubble._state is PetState.CRITICAL
     assert "见底" in window.bubble.status.text()
     assert "5%" in window.bubble.five_hour.detail.text()
     window.deleteLater()
@@ -100,16 +102,16 @@ def test_usage_visibility_is_saved(app, tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("used", "expected_state", "expected_activities"),
+    ("used", "expected_state"),
     [
-        (20, PetState.NORMAL, {PetActivity.IDLE}),
-        (75, PetState.LOW, {PetActivity.SIT_TRANSITION, PetActivity.SIT, PetActivity.IDLE}),
-        (95, PetState.CRITICAL, {PetActivity.CRITICAL, PetActivity.SIT}),
-        (100, PetState.EMPTY, {PetActivity.SLEEP}),
+        (20, PetState.NORMAL),
+        (75, PetState.LOW),
+        (95, PetState.CRITICAL),
+        (100, PetState.EMPTY),
     ],
 )
-def test_quota_states_drive_expected_pet_pose(
-    app, tmp_path: Path, used: int, expected_state: PetState, expected_activities: set[PetActivity]
+def test_quota_states_only_drive_bubble(
+    app, tmp_path: Path, used: int, expected_state: PetState
 ) -> None:
     window = make_window(tmp_path)
     window.set_snapshot(
@@ -117,15 +119,13 @@ def test_quota_states_drive_expected_pet_pose(
             {"rateLimits": {"primary": {"usedPercent": used, "windowDurationMins": 300}}}
         )
     )
-    assert window.pet.state is expected_state
-    if window.pet.activity is PetActivity.SIT_TRANSITION:
-        for _ in range(window.pet.skin.asset_for(PetActivity.SIT_TRANSITION).frame_count):
-            window.pet._advance_frame()
-    assert window.pet.activity in expected_activities
+    assert window.bubble._state is expected_state
+    assert window.pet.state is PetState.NORMAL
+    assert window.pet.activity is PetActivity.IDLE
     window.deleteLater()
 
 
-def test_recovered_uses_pool_then_returns_to_normal(app, tmp_path: Path) -> None:
+def test_recovered_only_changes_bubble_message(app, tmp_path: Path) -> None:
     window = make_window(tmp_path)
     low = parse_rate_limits(
         {"rateLimits": {"primary": {"usedPercent": 95, "windowDurationMins": 300}}}
@@ -135,17 +135,10 @@ def test_recovered_uses_pool_then_returns_to_normal(app, tmp_path: Path) -> None
     )
     window.set_snapshot(low)
     window.set_snapshot(recovered)
-    assert window.pet.state is PetState.RECOVERED
-    assert window.pet.activity in {
-        PetActivity.WAVE,
-        PetActivity.HOVER,
-        PetActivity.STRETCH,
-        PetActivity.IDLE,
-    }
-    assert "恢复" in window.bubble.status.text()
-    window._finish_recovered()
     assert window.pet.state is PetState.NORMAL
     assert window.pet.activity is PetActivity.IDLE
+    assert window.bubble._state is PetState.RECOVERED
+    assert "恢复" in window.bubble.status.text()
     window.deleteLater()
 
 
@@ -255,8 +248,8 @@ def test_shortcut_menu_updates_create_and_delete_state(app, tmp_path: Path) -> N
 def test_action_settings_user_override_and_restore_defaults(app, tmp_path: Path) -> None:
     repository = SkinRepository([Path(__file__).parents[1] / "skins"])
     skin = repository.scan()["rita_umbral_rose"]
-    dialog = ActionSettingsDialog(skin, {"hover": ["blink"]})
-    assert dialog.selected_overrides()["hover"] == ["blink"]
+    dialog = ActionSettingsDialog(skin, {"click": ["wave"]})
+    assert dialog.selected_overrides()["click"] == ["wave"]
     dialog.restore_defaults()
     assert dialog.selected_overrides() == {}
     dialog.deleteLater()
@@ -264,32 +257,36 @@ def test_action_settings_user_override_and_restore_defaults(app, tmp_path: Path)
 
 def test_action_and_event_ids_are_localized_with_safe_fallback() -> None:
     assert action_name("tidy_hair") == "整理头发"
-    assert tr("event.hover") == "鼠标悬停"
+    assert tr("event.click") == "点击人物"
     assert tr("missing.key") == "missing.key"
 
 
 def test_action_settings_use_chips_and_keep_english_ids(app) -> None:
     repository = SkinRepository([Path(__file__).parents[1] / "skins"])
     skin = repository.scan()["rita_umbral_rose"]
-    dialog = ActionSettingsDialog(skin, {"hover": ["blink"]})
-    hover = dialog._cards[0]
-    chip = next(item for item in hover._chips["hover"] if item.action_id == "blink")
+    dialog = ActionSettingsDialog(skin, {"click": ["wave"]})
+    click = dialog._cards[0]
+    chip = next(item for item in click._chips["click"] if item.action_id == "wave")
     assert chip.isCheckable()
-    assert "眨眼" in chip.text()
-    assert dialog.selected_overrides() == {"hover": ["blink"]}
+    assert "挥手" in chip.text()
+    assert dialog.selected_overrides() == {"click": ["wave"]}
     dialog.deleteLater()
 
 
-def test_quiet_mode_blocks_hover_and_idle_without_rewriting_overrides(app, tmp_path: Path) -> None:
+def test_quiet_mode_blocks_idle_without_rewriting_overrides(app, tmp_path: Path) -> None:
     path = tmp_path / "settings.json"
-    settings = AppSettings(quiet_mode=True, action_pool_overrides={"rita_umbral_rose": {"hover": ["hover"]}})
+    settings = AppSettings(quiet_mode=True, action_pool_overrides={"rita_umbral_rose": {"idle_random": ["blink"]}})
     window = PetWindow(settings, SettingsStore(path), StartupManager(registry=None))
-    assert not window.pet.play_hover_reaction(now=10.0)
     before = dict(window.pet.action_selector.overrides)
     window.pet._run_idle_action()
+    assert window.pet.activity is PetActivity.IDLE
     assert window.pet.action_selector.overrides == before
     window.pet.set_quiet_mode(False)
-    assert window.pet.play_hover_reaction(now=20.0)
+    window.pet.action_selector.policy = replace(
+        window.pet.action_selector.policy, idle_trigger_probability=1.0
+    )
+    window.pet._run_idle_action()
+    assert window.pet.activity is PetActivity.BLINK
     window.save_settings()
     assert SettingsStore(path).load().quiet_mode is True
     window.deleteLater()
@@ -298,10 +295,10 @@ def test_quiet_mode_blocks_hover_and_idle_without_rewriting_overrides(app, tmp_p
 def test_action_settings_are_saved_per_skin(app, tmp_path: Path) -> None:
     path = tmp_path / "settings.json"
     window = PetWindow(AppSettings(), SettingsStore(path), StartupManager(registry=None))
-    window.set_action_pool_overrides({"hover": ["none"], "click": ["wave"]})
+    window.set_action_pool_overrides({"idle_random": ["blink"], "click": ["wave"]})
     restored = SettingsStore(path).load()
     assert restored.action_pool_overrides[window.current_skin.id] == {
-        "hover": ["none"],
+        "idle_random": ["blink"],
         "click": ["wave"],
     }
     window.reset_action_pool_overrides()

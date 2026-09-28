@@ -53,7 +53,11 @@ def _mapped_points(window: PetWindow) -> tuple[QPointF, QPointF, QPointF, QRectF
     return foot, face, head, visible
 
 
-def _render_sequence(window: PetWindow, name: str, sequence: list[tuple[PetActivity, int]]) -> None:
+def _render_sequence(
+    window: PetWindow,
+    name: str,
+    sequence: list[tuple[PetActivity | str, int]],
+) -> None:
     columns = min(4, len(sequence))
     rows = math.ceil(len(sequence) / columns)
     image = QImage(
@@ -94,7 +98,8 @@ def _render_sequence(window: PetWindow, name: str, sequence: list[tuple[PetActiv
         painter.drawLine(QPointF(anchor.x() - 7, anchor.y()), QPointF(anchor.x() + 7, anchor.y()))
         painter.drawLine(QPointF(anchor.x(), anchor.y() - 7), QPointF(anchor.x(), anchor.y() + 7))
         painter.setPen(QColor("#F3ECEE"))
-        painter.drawText(cell.adjusted(8, 5, -8, -5), f"{activity.value} · {frame_index + 1}")
+        label = activity.value if isinstance(activity, PetActivity) else activity
+        painter.drawText(cell.adjusted(8, 5, -8, -5), f"{label} · {frame_index + 1}")
     painter.end()
     output = OUTPUT / f"{name}.png"
     if not image.save(str(output), "PNG"):
@@ -155,22 +160,21 @@ def main() -> int:
         skin_report["final_pet_window_geometry"] = [window.x(), window.y(), window.width(), window.height()]
         report["skins"][skin_id] = skin_report
         if skin_id == "rita_umbral_rose":
-            idle = [(PetActivity.IDLE, 0)]
+            idle: list[tuple[PetActivity | str, int]] = [(PetActivity.IDLE, 0)]
             for activity, filename in (
-                (PetActivity.HOVER, "idle-hover-idle"),
-                (PetActivity.CLICK, "idle-click-idle"),
-                (PetActivity.WAVE, "idle-wave-idle"),
+                ("smile", "idle-hover-idle"),
+                ("surprised", "idle-click-idle"),
+                ("wave", "idle-wave-idle"),
             ):
                 asset = skin.asset_for(activity)
                 _render_sequence(window, filename, idle + [(activity, i) for i in range(asset.frame_count)] + idle)
-            transition = skin.asset_for(PetActivity.SIT_TRANSITION)
-            _render_sequence(
-                window,
-                "idle-sit",
-                idle
-                + [(PetActivity.SIT_TRANSITION, i) for i in range(transition.frame_count)]
-                + [(PetActivity.SIT, 0)],
-            )
+            for activity, filename in (("sit", "idle-sit"), ("sleepy", "idle-sleepy")):
+                asset = skin.asset_for(activity)
+                _render_sequence(
+                    window,
+                    filename,
+                    idle + [(activity, i) for i in range(asset.frame_count)] + idle,
+                )
         window.deleteLater()
     (OUTPUT / "anchor-drift-report.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"

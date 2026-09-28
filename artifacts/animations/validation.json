@@ -14,7 +14,7 @@
         "transparent_rgb_residue_px": 0,
         "errors": []
       },
-      "hover": {
+      "smile": {
         "path": "skins\\rita_moonlit_rose\\animations\\hover.png",
         "frames": 6,
         "grid": [
@@ -26,7 +26,7 @@
         "transparent_rgb_residue_px": 0,
         "errors": []
       },
-      "click": {
+      "surprised": {
         "path": "skins\\rita_moonlit_rose\\animations\\click.png",
         "frames": 8,
         "grid": [
@@ -50,7 +50,7 @@
         "transparent_rgb_residue_px": 0,
         "errors": []
       },
-      "stretch": {
+      "tidy_hair": {
         "path": "skins\\rita_moonlit_rose\\animations\\tidy_hair.png",
         "frames": 12,
         "grid": [
@@ -62,26 +62,26 @@
         "transparent_rgb_residue_px": 0,
         "errors": []
       },
-      "sleep_react": {
-        "path": "skins\\rita_moonlit_rose\\animations\\sleep_react.png",
-        "frames": 8,
-        "grid": [
-          4,
-          2
-        ],
-        "total_duration_ms": 2400,
-        "bottom_drift_px": 0,
-        "transparent_rgb_residue_px": 0,
-        "errors": []
-      },
-      "sit_transition": {
+      "sit": {
         "path": "skins\\rita_moonlit_rose\\animations\\sit_transition.png",
-        "frames": 10,
+        "frames": 20,
         "grid": [
           5,
           2
         ],
-        "total_duration_ms": 1600,
+        "total_duration_ms": 4560,
+        "bottom_drift_px": 0,
+        "transparent_rgb_residue_px": 0,
+        "errors": []
+      },
+      "sleepy": {
+        "path": "skins\\rita_moonlit_rose\\animations\\sleepy.png",
+        "frames": 16,
+        "grid": [
+          4,
+          4
+        ],
+        "total_duration_ms": 4540,
         "bottom_drift_px": 0,
         "transparent_rgb_residue_px": 0,
         "errors": []
@@ -100,7 +100,7 @@
         "transparent_rgb_residue_px": 0,
         "errors": []
       },
-      "hover": {
+      "smile": {
         "path": "skins\\rita_umbral_rose\\animations\\hover.png",
         "frames": 6,
         "grid": [
@@ -112,7 +112,7 @@
         "transparent_rgb_residue_px": 0,
         "errors": []
       },
-      "click": {
+      "surprised": {
         "path": "skins\\rita_umbral_rose\\animations\\click.png",
         "frames": 8,
         "grid": [
@@ -136,7 +136,7 @@
         "transparent_rgb_residue_px": 0,
         "errors": []
       },
-      "stretch": {
+      "tidy_hair": {
         "path": "skins\\rita_umbral_rose\\animations\\tidy_hair.png",
         "frames": 12,
         "grid": [
@@ -148,26 +148,26 @@
         "transparent_rgb_residue_px": 0,
         "errors": []
       },
-      "sleep_react": {
-        "path": "skins\\rita_umbral_rose\\animations\\sleep_react.png",
-        "frames": 8,
-        "grid": [
-          4,
-          2
-        ],
-        "total_duration_ms": 2400,
-        "bottom_drift_px": 0,
-        "transparent_rgb_residue_px": 0,
-        "errors": []
-      },
-      "sit_transition": {
+      "sit": {
         "path": "skins\\rita_umbral_rose\\animations\\sit_transition.png",
-        "frames": 10,
+        "frames": 20,
         "grid": [
           5,
           2
         ],
-        "total_duration_ms": 1600,
+        "total_duration_ms": 4560,
+        "bottom_drift_px": 0,
+        "transparent_rgb_residue_px": 0,
+        "errors": []
+      },
+      "sleepy": {
+        "path": "skins\\rita_umbral_rose\\animations\\sleepy.png",
+        "frames": 16,
+        "grid": [
+          4,
+          4
+        ],
+        "total_duration_ms": 4540,
         "bottom_drift_px": 0,
         "transparent_rgb_residue_px": 0,
         "errors": []

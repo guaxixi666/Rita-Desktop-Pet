@@ -1,21 +1,33 @@
 # Development status
 
-Updated: 2026-09-24
+Updated: 2026-09-28
 
 ## Current phase
 
-**Release Candidate 0.1.0** — phases 1–12, Rita UI art pass, extensible Skin Pack system, interaction/layout stabilization, hatch-pet animation upgrade, and configurable Action Policy are complete.
+**Release Candidate 0.1.0** — quota display and pet animation are now fully decoupled; Click and Random Idle are the only active action sources.
+
+## Quota/action decoupling acceptance
+
+- Removed all runtime quota-to-animation transitions. LOW no longer forces Sit, CRITICAL no longer forces a fatigued pose, EMPTY no longer forces Sleep, and RECOVERED no longer forces Stretch. Quota states remain in the usage bubble only.
+- Disabled Hover/Mouse Enter playback. The Chinese interaction settings page now exposes only Click and Random Idle; quiet mode pauses Random Idle only.
+- ActionSelector ignores quota state for ordinary actions and filters only by available Skin asset, cooldown, playback lock, and per-Skin user overrides. Legacy manifest fields and action aliases remain parse-compatible but are not active quota behavior.
+- Standardized the lifecycle to `idle → action → idle`. Sit is a 20-frame/4560 ms one-shot with a 1500 ms seated hold; Sleepy is a 16-frame/4540 ms one-shot. Real QTimer tests confirmed both release `animation_busy` and accept the next action immediately.
+- Current high-quality action set: Blink 600 ms, Smile 1100 ms, Surprised 1500 ms, Wave 2400 ms, Tidy Hair 2920 ms, Sit 4560 ms, and Sleepy 4540 ms. Click and Random Idle use different weights and retain three-action repeat avoidance.
+- `$hatch-pet` deterministic QA found a 4 px contact-line mismatch in the first Sleepy assembly. The builder now aligns mixed approved source frames without scaling; both bundled skins pass with 0 px bottom-anchor drift and zero transparent RGB residue.
+- Native Windows capture verified the frozen EXE's visible Sleepy mid-pose without recording unrelated desktop content: `artifacts/screenshots/quota-decoupled-sleepy-frozen-region.png`. Contact sheets and timed GIF previews for both skins are under `artifacts/animations/<skin-id>/`.
+- Automated suite: **181 passed** with Qt offscreen, including injected 100/50/10/0% quota checks and real event-loop one-shot completion.
+- Rebuilt frozen EXE forced Sit, read real App Server data (5h used 23%, weekly used 4%), exited 0, and left zero new App Server processes. A fresh Portable extraction outside the source tree forced Sleepy, read 24% / 4%, exited 0, left zero new App Server processes, and contained all project/third-party/Qt license files.
 
 ## Final acceptance
 
-- Automated tests: **148 passed** with Qt offscreen; the release build repeats the full suite before packaging.
+- Automated tests: **181 passed** with Qt offscreen; the release build repeats the full suite before packaging.
 - Frozen EXE smoke test: exit code 0; completed a real App Server read; no new App Server process remained after exit.
 - Portable test: extracted into a new `%TEMP%` directory outside the source tree, completed a real App Server read, exited 0, and left no child process behind.
 - Live Codex App Server read: account type `chatgpt`, plan `plus`, Codex bucket, 5-hour and weekly windows, credits, and reset-credit count were returned.
 - Acceptance snapshot: 5h used 34% / remaining 66%, reset 2026-09-23 15:19:28 +08:00; weekly used 41% / remaining 59%, reset 2026-09-28 16:03:35 +08:00. Credits balance was 0 (`hasCredits=false`); one reset credit was reported. Values are time-sensitive.
 - Raw/display comparison: raw `usedPercent` and `resetsAt` mapped exactly; UI displayed `100 - usedPercent` and local reset time. No rounding difference existed in this snapshot.
 - UI/interaction: transparent frameless tool window, topmost toggle, drag/lock behavior, usage visibility, opacity, refresh interval, tray/menu creation, screen-bound clamping, and DPI metadata passed native Qt tests.
-- State machine: idle, walk, sit, stretch, critical, sleep, and RECOVERED-to-NORMAL behavior passed injected-data tests without changing the real account.
+- Animation lifecycle: injected 100/50/10/0% usage never changes the pet pose; Click and Random Idle work at every level; Sit and Sleepy return to idle and release the playback lock.
 - Persistence: position, opacity, usage visibility, refresh interval, topmost, and lock settings survived two frozen-process restarts.
 - Error path: a frozen run with Codex removed from `PATH` stayed alive, logged the failure, and exited cleanly; an injected outage recovered successfully after an immediate refresh.
 - Startup: the current-user Run-key value was enabled, verified, disabled, and restored without administrator access.

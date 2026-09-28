@@ -10,15 +10,23 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "artifacts" / "animations" / "validation.json"
-ACTIONS = ("blink", "hover", "click", "wave", "stretch", "sleep_react", "sit_transition")
+ACTIONS = ("blink", "smile", "surprised", "wave", "tidy_hair", "sit", "sleepy")
 
 
-def _frame_boxes(image: Image.Image, grid: tuple[int, int], count: int) -> list[tuple[int, int, int, int]]:
+def _frame_boxes(
+    image: Image.Image,
+    grid: tuple[int, int],
+    frames: int | list[list[int]],
+) -> list[tuple[int, int, int, int]]:
     columns, rows = grid
     width, height = image.size
     boxes = []
-    for index in range(count):
-        column, row = index % columns, index // columns
+    cells = (
+        [(index % columns, index // columns) for index in range(frames)]
+        if isinstance(frames, int)
+        else [(int(column), int(row)) for column, row in frames]
+    )
+    for column, row in cells:
         boxes.append(
             (
                 round(column * width / columns),
@@ -40,13 +48,14 @@ def main() -> int:
             path = skin_dir / (state.get("source") or state.get("file"))
             image = Image.open(path).convert("RGBA")
             grid = tuple(state.get("grid", [1, 1]))
-            count = int(state.get("frames", 1))
+            frames = state.get("frames", 1)
+            count = len(frames) if isinstance(frames, list) else int(frames)
             durations = state.get("frame_durations_ms", [])
             bottoms: list[int] = []
             empty_frames: list[int] = []
             edge_frames: list[int] = []
             residue = 0
-            for index, box in enumerate(_frame_boxes(image, grid, count)):
+            for index, box in enumerate(_frame_boxes(image, grid, frames)):
                 frame = image.crop(box)
                 alpha = frame.getchannel("A")
                 bounds = alpha.point(lambda value: 255 if value > 15 else 0).getbbox()

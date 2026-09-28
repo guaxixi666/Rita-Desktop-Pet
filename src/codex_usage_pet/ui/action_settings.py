@@ -14,13 +14,8 @@ from .theme import rgba
 
 
 _CARDS: tuple[tuple[str, tuple[ActionEvent, ...], bool], ...] = (
-    ("hover", (ActionEvent.HOVER,), True),
     ("click", (ActionEvent.CLICK,), True),
-    ("idle_random", (ActionEvent.IDLE_RANDOM,), False),
-    ("low", (ActionEvent.LOW_ON_ENTER, ActionEvent.LOW_IDLE, ActionEvent.LOW_ON_EXIT), False),
-    ("critical", (ActionEvent.CRITICAL_ON_ENTER, ActionEvent.CRITICAL_IDLE, ActionEvent.CRITICAL_ON_EXIT), False),
-    ("empty", (ActionEvent.EMPTY_ON_ENTER, ActionEvent.EMPTY_IDLE, ActionEvent.EMPTY_ON_EXIT), False),
-    ("recovered", (ActionEvent.RECOVERED,), False),
+    ("idle_random", (ActionEvent.IDLE_RANDOM,), True),
 )
 
 

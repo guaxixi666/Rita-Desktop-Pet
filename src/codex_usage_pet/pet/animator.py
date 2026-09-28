@@ -23,7 +23,7 @@ class PetActivity(str, Enum):
 
 
 class PetBehaviorController:
-    """Stores the selected base pose; action policy owns state-to-pose choice."""
+    """Compatibility holder whose base pose is now always idle."""
 
     def __init__(self) -> None:
         self.quota_state = PetState.NORMAL
@@ -33,7 +33,7 @@ class PetBehaviorController:
         self, state: PetState, base_activity: PetActivity | str = PetActivity.IDLE
     ) -> PetActivity | str:
         self.quota_state = state
-        self.activity = base_activity
+        self.activity = PetActivity.IDLE
         return self.activity
 
     def advance(self) -> PetActivity | str:

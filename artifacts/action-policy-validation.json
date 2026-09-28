@@ -1,33 +1,39 @@
 {
   "skin": "rita_umbral_rose",
+  "events": [
+    "click",
+    "idle_random"
+  ],
+  "hover_enabled": false,
+  "quota_state_filtering": false,
   "iterations_per_event": 60,
   "anchor": [
-    1881,
+    1797,
     1001
   ],
   "anchor_preserved": true,
   "outcomes": {
-    "hover": {
-      "hover": 24,
-      "none": 13,
-      "blink": 23
-    },
     "click": {
-      "click": 22,
-      "wave": 13,
-      "stretch": 17,
-      "none": 8
+      "surprised": 21,
+      "wave": 12,
+      "smile": 18,
+      "tidy_hair": 5,
+      "sit": 3,
+      "sleepy": 1
     },
     "idle_random": {
-      "wave": 10,
-      "stretch": 20,
-      "blink": 19,
-      "none": 11
+      "blink": 23,
+      "smile": 11,
+      "tidy_hair": 15,
+      "wave": 4,
+      "sit": 4,
+      "sleepy": 2,
+      "none": 1
     }
   },
   "recent_history": [
-    "blink",
-    "stretch",
+    "smile",
+    "tidy_hair",
     "blink"
   ]
 }

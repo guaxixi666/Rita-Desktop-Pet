@@ -54,11 +54,35 @@
           "face_drift_px": 0.0,
           "head_top_drift_px": 0.0
         },
-        "sit": {
-          "frames": 1,
+        "smile": {
+          "frames": 6,
           "foot_drift_px": 0.0,
-          "face_drift_px": 0.0,
-          "head_top_drift_px": 0.0
+          "face_drift_px": 1.832,
+          "head_top_drift_px": 1.939
+        },
+        "surprised": {
+          "frames": 8,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 10.194,
+          "head_top_drift_px": 10.199
+        },
+        "tidy_hair": {
+          "frames": 12,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 3.79,
+          "head_top_drift_px": 3.908
+        },
+        "sit": {
+          "frames": 20,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 27.776,
+          "head_top_drift_px": 38.531
+        },
+        "sleepy": {
+          "frames": 16,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 27.776,
+          "head_top_drift_px": 38.531
         },
         "sit_transition": {
           "frames": 10,
@@ -160,11 +184,35 @@
           "face_drift_px": 0.0,
           "head_top_drift_px": 0.0
         },
-        "sit": {
-          "frames": 1,
+        "smile": {
+          "frames": 6,
           "foot_drift_px": 0.0,
-          "face_drift_px": 0.0,
-          "head_top_drift_px": 0.0
+          "face_drift_px": 1.832,
+          "head_top_drift_px": 1.939
+        },
+        "surprised": {
+          "frames": 8,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 10.194,
+          "head_top_drift_px": 10.199
+        },
+        "tidy_hair": {
+          "frames": 12,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 3.154,
+          "head_top_drift_px": 3.86
+        },
+        "sit": {
+          "frames": 20,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 27.931,
+          "head_top_drift_px": 37.776
+        },
+        "sleepy": {
+          "frames": 16,
+          "foot_drift_px": 0.0,
+          "face_drift_px": 27.931,
+          "head_top_drift_px": 37.776
         },
         "sit_transition": {
           "frames": 10,

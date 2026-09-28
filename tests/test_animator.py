@@ -2,19 +2,16 @@ from codex_usage_pet.pet.animator import PetActivity, PetBehaviorController
 from codex_usage_pet.pet.states import PetState
 
 
-def test_action_policy_can_supply_each_quota_base_pose() -> None:
+def test_quota_state_cannot_change_base_pose() -> None:
     controller = PetBehaviorController()
-    assert controller.set_quota_state(PetState.LOW, PetActivity.SIT) is PetActivity.SIT
-    assert controller.advance() is PetActivity.SIT
-    assert (
-        controller.set_quota_state(PetState.CRITICAL, PetActivity.CRITICAL)
-        is PetActivity.CRITICAL
-    )
-    assert controller.set_quota_state(PetState.EMPTY, PetActivity.SLEEP) is PetActivity.SLEEP
-    assert (
-        controller.set_quota_state(PetState.RECOVERED, PetActivity.STRETCH)
-        is PetActivity.STRETCH
-    )
+    for state, requested in (
+        (PetState.LOW, PetActivity.SIT),
+        (PetState.CRITICAL, PetActivity.CRITICAL),
+        (PetState.EMPTY, PetActivity.SLEEP),
+        (PetState.RECOVERED, PetActivity.STRETCH),
+    ):
+        assert controller.set_quota_state(state, requested) is PetActivity.IDLE
+        assert controller.advance() is PetActivity.IDLE
 
 
 def test_normal_base_pose_remains_static_idle() -> None:

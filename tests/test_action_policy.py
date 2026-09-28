@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from dataclasses import replace
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -9,18 +8,9 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from PySide6.QtWidgets import QApplication
 
-from codex_usage_pet.pet.action_policy import (
-    ActionCandidate,
-    ActionEvent,
-    ActionPolicy,
-    ActionSelector,
-    default_action_policy,
-    parse_action_policy,
-)
-from codex_usage_pet.pet.animator import PetActivity
+from codex_usage_pet.pet.action_policy import ActionCandidate, ActionEvent, ActionPolicy, ActionSelector, parse_action_policy
 from codex_usage_pet.pet.states import PetState
 from codex_usage_pet.skins.loader import SkinRepository
-from codex_usage_pet.ui.pet_widget import PetWidget
 
 
 class FirstChoiceRandom:
@@ -39,207 +29,81 @@ def app() -> QApplication:
     return QApplication.instance() or QApplication([])
 
 
-def _selector(
-    event: ActionEvent,
-    *candidates: ActionCandidate,
-    avoid_repeat: bool = True,
-) -> ActionSelector:
-    return ActionSelector(
-        ActionPolicy(
-            pools={event.value: tuple(candidates)},
-            avoid_immediate_repeat=avoid_repeat,
-        ),
-        rng=FirstChoiceRandom(),  # type: ignore[arg-type]
-    )
+def _selector(event: ActionEvent, *candidates: ActionCandidate) -> ActionSelector:
+    return ActionSelector(ActionPolicy(pools={event.value: tuple(candidates)}), rng=FirstChoiceRandom())  # type: ignore[arg-type]
 
 
 def _packs():
-    repository = SkinRepository([Path(__file__).parents[1] / "skins"])
-    return repository.scan()
+    return SkinRepository([Path(__file__).parents[1] / "skins"]).scan()
 
 
-def test_hover_pool_is_not_fixed_to_blink() -> None:
-    selector = _selector(
-        ActionEvent.HOVER,
-        ActionCandidate("blink", 10),
-        ActionCandidate("hover", 10),
-    )
-    first = selector.choose(
-        ActionEvent.HOVER, state=PetState.NORMAL, supported_actions={"blink", "hover"}
-    )
-    selector.commit(first, now=1)
-    second = selector.choose(
-        ActionEvent.HOVER, state=PetState.NORMAL, supported_actions={"blink", "hover"}
-    )
-    assert (first.action, second.action) == ("blink", "hover")
+def test_click_and_random_idle_are_the_only_runtime_events() -> None:
+    assert set(ActionEvent) == {ActionEvent.CLICK, ActionEvent.IDLE_RANDOM}
 
 
-def test_click_and_recovered_can_select_multiple_actions() -> None:
-    for event in (ActionEvent.CLICK, ActionEvent.RECOVERED):
-        selector = _selector(
-            event,
-            ActionCandidate("wave", 10),
-            ActionCandidate("stretch", 10),
-        )
-        state = PetState.NORMAL if event is ActionEvent.CLICK else PetState.RECOVERED
-        first = selector.choose(event, state=state, supported_actions={"wave", "stretch"})
-        selector.commit(first, now=1)
-        second = selector.choose(event, state=state, supported_actions={"wave", "stretch"})
-        assert {first.action, second.action} == {"wave", "stretch"}
+def test_quota_state_never_filters_click_or_idle_action() -> None:
+    selector = _selector(ActionEvent.CLICK, ActionCandidate("wave", 1, allowed_states=frozenset({PetState.NORMAL})))
+    for state in PetState:
+        assert selector.choose(ActionEvent.CLICK, state=state, supported_actions={"wave"}).action == "wave"
 
 
-def test_unsupported_and_wrong_state_actions_are_filtered() -> None:
+def test_only_missing_assets_and_cooldown_filter_candidates() -> None:
     selector = _selector(
         ActionEvent.CLICK,
         ActionCandidate("missing", 100),
-        ActionCandidate("wave", 1, allowed_states=frozenset({PetState.NORMAL})),
+        ActionCandidate("wave", 1, cooldown_min_ms=1000, cooldown_max_ms=1000),
     )
-    normal = selector.choose(
-        ActionEvent.CLICK, state=PetState.NORMAL, supported_actions={"wave"}
-    )
-    empty = selector.choose(
-        ActionEvent.CLICK, state=PetState.EMPTY, supported_actions={"wave"}
-    )
-    assert normal.action == "wave"
-    assert empty.action is None
-    assert empty.reason == "empty"
-
-
-def test_cooldown_filters_action_until_available() -> None:
-    selector = _selector(
-        ActionEvent.CLICK,
-        ActionCandidate("wave", 10, cooldown_min_ms=1000, cooldown_max_ms=1000),
-    )
-    first = selector.choose(
-        ActionEvent.CLICK, state=PetState.NORMAL, supported_actions={"wave"}, now=10
-    )
+    first = selector.choose(ActionEvent.CLICK, state=PetState.EMPTY, supported_actions={"wave"}, now=10)
     selector.commit(first, now=10)
-    blocked = selector.choose(
-        ActionEvent.CLICK, state=PetState.NORMAL, supported_actions={"wave"}, now=10.5
-    )
-    ready = selector.choose(
-        ActionEvent.CLICK, state=PetState.NORMAL, supported_actions={"wave"}, now=11
-    )
+    blocked = selector.choose(ActionEvent.CLICK, state=PetState.NORMAL, supported_actions={"wave"}, now=10.5)
+    ready = selector.choose(ActionEvent.CLICK, state=PetState.CRITICAL, supported_actions={"wave"}, now=11)
     assert first.action == "wave"
     assert blocked.action is None
     assert ready.action == "wave"
 
 
-def test_only_action_can_repeat_but_multiple_actions_avoid_immediate_repeat() -> None:
-    single = _selector(ActionEvent.IDLE_RANDOM, ActionCandidate("blink", 10))
-    first = single.choose(
-        ActionEvent.IDLE_RANDOM, state=PetState.NORMAL, supported_actions={"blink"}
-    )
-    single.commit(first)
-    assert (
-        single.choose(
-            ActionEvent.IDLE_RANDOM, state=PetState.NORMAL, supported_actions={"blink"}
-        ).action
-        == "blink"
-    )
-
-    multiple = _selector(
-        ActionEvent.IDLE_RANDOM,
-        ActionCandidate("blink", 10),
-        ActionCandidate("wave", 10),
-    )
-    selected = multiple.choose(
-        ActionEvent.IDLE_RANDOM,
-        state=PetState.NORMAL,
-        supported_actions={"blink", "wave"},
-    )
-    multiple.commit(selected)
-    assert (
-        multiple.choose(
-            ActionEvent.IDLE_RANDOM,
-            state=PetState.NORMAL,
-            supported_actions={"blink", "wave"},
-        ).action
-        == "wave"
-    )
+def test_recent_history_avoids_immediate_repeat() -> None:
+    selector = _selector(ActionEvent.IDLE_RANDOM, ActionCandidate("blink", 10), ActionCandidate("wave", 10))
+    first = selector.choose(ActionEvent.IDLE_RANDOM, state=PetState.NORMAL, supported_actions={"blink", "wave"})
+    selector.commit(first)
+    second = selector.choose(ActionEvent.IDLE_RANDOM, state=PetState.EMPTY, supported_actions={"blink", "wave"})
+    assert (first.action, second.action) == ("blink", "wave")
 
 
 def test_none_and_empty_pool_are_safe() -> None:
-    none_selector = _selector(ActionEvent.HOVER, ActionCandidate("none", 10))
-    none = none_selector.choose(
-        ActionEvent.HOVER, state=PetState.NORMAL, supported_actions=set()
+    none = _selector(ActionEvent.CLICK, ActionCandidate("none", 10)).choose(
+        ActionEvent.CLICK, state=PetState.EMPTY, supported_actions=set()
     )
     empty = ActionSelector(ActionPolicy(), rng=FirstChoiceRandom()).choose(  # type: ignore[arg-type]
-        ActionEvent.HOVER, state=PetState.NORMAL, supported_actions=set()
+        ActionEvent.CLICK, state=PetState.NORMAL, supported_actions=set()
     )
     assert none.action is None and none.reason == "none"
     assert empty.action is None and empty.reason == "empty"
 
 
-def test_user_override_and_restore_default() -> None:
-    selector = _selector(
-        ActionEvent.CLICK,
-        ActionCandidate("click", 10),
-        ActionCandidate("wave", 10),
-    )
-    selector.set_overrides({ActionEvent.CLICK.value: ["wave"]})
-    assert (
-        selector.choose(
-            ActionEvent.CLICK,
-            state=PetState.NORMAL,
-            supported_actions={"click", "wave"},
-        ).action
-        == "wave"
-    )
-    selector.set_overrides(None)
-    assert (
-        selector.choose(
-            ActionEvent.CLICK,
-            state=PetState.NORMAL,
-            supported_actions={"click", "wave"},
-        ).action
-        == "click"
-    )
+def test_overrides_and_legacy_action_ids_are_normalized() -> None:
+    selector = _selector(ActionEvent.CLICK, ActionCandidate("surprised", 10), ActionCandidate("wave", 10))
+    selector.set_overrides({"click": ["click"], "hover": ["hover"]})
+    assert selector.overrides == {"click": ["surprised"]}
+    assert selector.choose(
+        ActionEvent.CLICK, state=PetState.EMPTY, supported_actions={"surprised", "wave"}
+    ).action == "surprised"
 
 
-def test_bundled_skins_have_different_personality() -> None:
-    packs = _packs()
-    umbral = packs["rita_umbral_rose"].action_policy
-    moonlit = packs["rita_moonlit_rose"].action_policy
-    assert umbral.idle_trigger_probability != moonlit.idle_trigger_probability
-    assert umbral.pool(ActionEvent.IDLE_RANDOM) != moonlit.pool(ActionEvent.IDLE_RANDOM)
+def test_bundled_pools_have_quality_choices_and_no_state_filters() -> None:
+    for skin in _packs().values():
+        click = skin.action_policy.pool(ActionEvent.CLICK)
+        idle = skin.action_policy.pool(ActionEvent.IDLE_RANDOM)
+        assert len(click) == len(idle) == 7
+        assert all(candidate.allowed_states is None for candidate in (*click, *idle))
+        assert {candidate.action for candidate in click if candidate.action != "none"} == {
+            "smile", "surprised", "wave", "tidy_hair", "sit", "sleepy"
+        }
+        assert {candidate.action for candidate in idle if candidate.action != "none"} == {
+            "blink", "smile", "wave", "tidy_hair", "sit", "sleepy"
+        }
 
 
-def test_concise_top_level_action_pools_schema_is_supported() -> None:
-    policy = parse_action_policy(
-        {"hover": [{"action": "blink", "weight": 7, "cooldown": 1000}]}
-    )
-    assert policy.pool(ActionEvent.HOVER) == (
-        ActionCandidate("blink", 7, 1000, 1000),
-    )
-
-
-def test_low_enter_idle_exit_sequence_uses_policy(app) -> None:
-    skin = _packs()["rita_umbral_rose"]
-    pools = dict(default_action_policy().pools)
-    pools[ActionEvent.LOW_ON_ENTER.value] = (ActionCandidate("sit_transition", 100),)
-    pools[ActionEvent.LOW_IDLE.value] = (ActionCandidate("sit", 100),)
-    pools[ActionEvent.LOW_ON_EXIT.value] = (ActionCandidate("wave", 100),)
-    policy_skin = replace(skin, action_policy=replace(default_action_policy(), pools=pools))
-    widget = PetWidget(policy_skin, rng=FirstChoiceRandom())  # type: ignore[arg-type]
-
-    widget.set_state(PetState.LOW)
-    assert widget.activity is PetActivity.SIT_TRANSITION
-    for _ in range(widget.skin.asset_for(PetActivity.SIT_TRANSITION).frame_count):
-        widget._advance_frame()
-    assert widget.activity is PetActivity.SIT
-
-    widget.set_state(PetState.NORMAL)
-    assert widget.activity is PetActivity.WAVE
-    for _ in range(widget.skin.asset_for(PetActivity.WAVE).frame_count):
-        widget._advance_frame()
-    assert widget.activity is PetActivity.IDLE
-
-
-def test_critical_cannot_be_overridden_by_random_idle(app) -> None:
-    widget = PetWidget(_packs()["rita_umbral_rose"], rng=FirstChoiceRandom())  # type: ignore[arg-type]
-    widget.set_state(PetState.CRITICAL)
-    activity = widget.activity
-    widget._run_idle_action()
-    assert widget.activity is activity
-    assert widget._action_activity is None
+def test_concise_click_schema_is_supported() -> None:
+    policy = parse_action_policy({"click": [{"action": "wave", "weight": 7, "cooldown": 1000}]})
+    assert policy.pool(ActionEvent.CLICK) == (ActionCandidate("wave", 7, 1000, 1000),)
