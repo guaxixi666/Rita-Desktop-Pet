@@ -1,10 +1,20 @@
 # Development status
 
-Updated: 2026-09-28
+Updated: 2026-09-29
 
 ## Current phase
 
-**Release Candidate 0.1.0** — quota display and pet animation are now fully decoupled; Click and Random Idle are the only active action sources.
+**Rita Desktop Pet v0.1.0-beta** — public Beta branding and release packaging are being finalized on the stable Sprite implementation.
+
+## Public Beta branding and release acceptance
+
+- Public product name is now `Rita Desktop Pet`; the frozen executable is `RitaDesktopPet.exe`, the application/window/tray/about labels use the new name, and the Python module namespace remains `codex_usage_pet` for low-risk internal compatibility.
+- Packaging outputs `dist/RitaDesktopPet/RitaDesktopPet.exe` and `dist/Rita-Desktop-Pet-v0.1.0-beta-portable.zip`. Inno Setup is configured to output `Rita-Desktop-Pet-v0.1.0-beta-setup.exe` when Inno Setup 6 is available.
+- User data now lives under `%LOCALAPPDATA%/RitaDesktopPet`; the desktop shortcut is `Rita Desktop Pet.lnk`, and the HKCU startup value is `RitaDesktopPet`.
+- Automated suite: **181 passed**. The final ZIP was extracted to a fresh temporary directory; its window title was `Rita Desktop Pet · Codex 额度`, Surprised and Wave playback smoke tests exited 0, real App Server reads succeeded, and zero new App Server processes remained.
+- Archive audit found 0 source, test, Git, cache, log, local configuration, credential, API-key, or Live2D experiment entries. Both Rita Skin Packs, all animation images, runtime dependencies, project/third-party/Qt licenses, README, and release notes are present.
+- Release SHA-256: `DEA3CE38CB9B8ACAFDECAB139AE6296F8F89C0BC71EC891FECF0A3DD73B8FA1F`.
+- GitHub publication is not automated on this host because no remote is configured and GitHub CLI is unavailable. `RELEASE_NOTES_v0.1.0-beta.md` contains the prepared release body.
 
 ## Quota/action decoupling acceptance
 

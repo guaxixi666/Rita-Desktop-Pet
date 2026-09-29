@@ -1,6 +1,6 @@
 # Third-party notices
 
-Codex Usage Pet is MIT licensed. No source files or art assets from the four
+Rita Desktop Pet is MIT licensed. No source files or art assets from the four
 reference applications are redistributed. Their MIT-licensed designs informed
 the implementation; project links and copyright notices are retained here as
 attribution:

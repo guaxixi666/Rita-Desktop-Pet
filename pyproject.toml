@@ -3,16 +3,16 @@ requires = ["setuptools>=75"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "codex-usage-pet"
-version = "0.1.0"
-description = "A lightweight Windows desktop pet for Codex usage limits"
+name = "rita-desktop-pet"
+version = "0.1.0b0"
+description = "Rita Desktop Pet for Windows with Codex usage display"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
 dependencies = ["PySide6-Essentials>=6.8,<7"]
 
 [project.scripts]
-codex-usage-pet = "codex_usage_pet.app:main"
+rita-desktop-pet = "codex_usage_pet.app:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

@@ -75,7 +75,7 @@ def main() -> int:
     widget.show()
     app.processEvents()
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    lines = ["Codex Usage Pet animation regression diagnostics", f"skin={skin.id}"]
+    lines = ["Rita Desktop Pet animation regression diagnostics", f"skin={skin.id}"]
     for activity, filename in ACTIONS:
         asset = skin.asset_for(activity)
         frames = [render(widget, activity, index) for index in range(asset.frame_count)]

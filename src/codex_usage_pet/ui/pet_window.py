@@ -89,8 +89,8 @@ class PetWindow(QWidget):
             window.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             window.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
             window.setWindowOpacity(settings.opacity)
-        self.setWindowTitle("Codex 额度桌宠")
-        self.bubble.setWindowTitle("Codex 额度桌宠 · 额度信息")
+        self.setWindowTitle("Rita Desktop Pet")
+        self.bubble.setWindowTitle("Rita Desktop Pet · Codex 额度")
         for target in (self, self.pet, self.bubble, self.bubble.panel):
             target.installEventFilter(self)
         QTimer.singleShot(0, self._restore_position)
@@ -345,7 +345,7 @@ class PetWindow(QWidget):
             self.settings.startup_enabled = enabled
             self.save_settings()
         except Exception as exc:
-            QMessageBox.warning(self, "Codex 额度桌宠", f"无法修改开机启动：{exc}")
+            QMessageBox.warning(self, "Rita Desktop Pet", f"无法修改开机启动：{exc}")
 
     def create_desktop_shortcut(self) -> None:
         try:
@@ -403,7 +403,7 @@ class PetWindow(QWidget):
         try:
             self.set_auto_skin_fixed_time(value.strip())
         except ValueError:
-            QMessageBox.warning(self, "Codex 额度桌宠", "时间格式应为 HH:MM，例如 08:30。")
+            QMessageBox.warning(self, "Rita Desktop Pet", "时间格式应为 HH:MM，例如 08:30。")
 
     def rescan_skins(self) -> None:
         self._queue_skin_swap(self.skin_manager.rescan())
@@ -450,8 +450,8 @@ class PetWindow(QWidget):
     def show_about(self) -> None:
         QMessageBox.about(
             self,
-            "关于 Codex Usage Pet",
-            "Codex 额度桌宠 0.1.0\n\n独立人物窗口与皮肤包互动动画。\n"
+            "关于 Rita Desktop Pet",
+            "Rita Desktop Pet 0.1.0 Beta\n\n独立人物窗口与皮肤包互动动画。\n"
             "额度来自本机官方 Codex 应用服务。\n不读取浏览器登录信息，不保存认证凭据。",
         )
 

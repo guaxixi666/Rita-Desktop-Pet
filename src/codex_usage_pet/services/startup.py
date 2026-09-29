@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-APP_NAME = "CodexUsagePet"
+APP_NAME = "RitaDesktopPet"
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 

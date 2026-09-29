@@ -8,8 +8,8 @@ from pathlib import Path
 def app_data_dir() -> Path:
     base = os.environ.get("LOCALAPPDATA")
     if base:
-        return Path(base) / "CodexUsagePet"
-    return Path.home() / ".codex-usage-pet"
+        return Path(base) / "RitaDesktopPet"
+    return Path.home() / ".rita-desktop-pet"
 
 
 def config_path() -> Path:

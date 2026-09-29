@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QStandardPaths
 
-SHORTCUT_FILENAME = "Codex Usage Pet.lnk"
+SHORTCUT_FILENAME = "Rita Desktop Pet.lnk"
 
 
 class _GUID(ctypes.Structure):
@@ -114,7 +114,7 @@ def write_shell_link(
             "IShellLinkW.SetIconLocation",
         )
         _check_hresult(
-            set_description(shell_link, "Codex Usage Pet"),
+            set_description(shell_link, "Rita Desktop Pet"),
             "IShellLinkW.SetDescription",
         )
 
@@ -177,7 +177,7 @@ class DesktopShortcutManager:
 
     def create(self) -> Path:
         if not self.supported or self._executable is None:
-            raise RuntimeError("请在冻结版 CodexUsagePet.exe 中创建桌面快捷方式")
+            raise RuntimeError("请在冻结版 RitaDesktopPet.exe 中创建桌面快捷方式")
         if not self._executable.is_file():
             raise FileNotFoundError(f"找不到当前程序：{self._executable}")
         shortcut = self.shortcut_path
@@ -186,7 +186,7 @@ class DesktopShortcutManager:
 
     def delete(self) -> bool:
         if not self.supported:
-            raise RuntimeError("请在冻结版 CodexUsagePet.exe 中删除桌面快捷方式")
+            raise RuntimeError("请在冻结版 RitaDesktopPet.exe 中删除桌面快捷方式")
         shortcut = self.shortcut_path
         try:
             shortcut.unlink()

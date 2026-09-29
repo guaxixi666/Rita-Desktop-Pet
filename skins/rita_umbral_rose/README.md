@@ -1,7 +1,7 @@
 # Rita-inspired desktop-pet Skin Pack
 
 `rita_sprite_sheet.png` is an original, newly generated 3×2 transparent sprite
-sheet made for Codex Usage Pet. It was produced with OpenAI image generation
+sheet made for Rita Desktop Pet. It was produced with OpenAI image generation
 from a written visual brief after studying public character references; no
 official illustration, game texture, fan artwork, logo, or watermark is copied
 or embedded.

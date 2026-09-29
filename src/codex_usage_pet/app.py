@@ -18,7 +18,7 @@ from codex_usage_pet.ui.tray import TrayIcon, make_app_icon
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Codex Usage Pet")
+    parser = argparse.ArgumentParser(description="Rita Desktop Pet")
     parser.add_argument("--smoke-test", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--animation-test", metavar="ACTION_ID", help=argparse.SUPPRESS)
     return parser
@@ -28,10 +28,10 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     log_path = configure_logging()
     logger = logging.getLogger(__name__)
-    logger.info("Codex Usage Pet starting; log=%s", log_path)
+    logger.info("Rita Desktop Pet starting; log=%s", log_path)
     app = QApplication(sys.argv[:1])
-    app.setApplicationName("Codex 额度桌宠")
-    app.setApplicationVersion("0.1.0")
+    app.setApplicationName("Rita Desktop Pet")
+    app.setApplicationVersion("0.1.0-beta")
     app.setQuitOnLastWindowClosed(False)
 
     store = SettingsStore()
@@ -61,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         window.save_settings()
         service.stop()
         tray.hide()
-        logger.info("Codex Usage Pet stopped")
+        logger.info("Rita Desktop Pet stopped")
         app.quit()
 
     window.quit_requested.connect(shutdown)

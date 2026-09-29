@@ -249,7 +249,7 @@ class CodexAppServerClient:
                     {
                         "clientInfo": {
                             "name": "codex_usage_pet",
-                            "title": "Codex Usage Pet",
+                            "title": "Rita Desktop Pet",
                             "version": "0.1.0",
                         }
                     },

@@ -214,7 +214,7 @@ def test_shortcut_menu_updates_create_and_delete_state(app, tmp_path: Path) -> N
 
         def create(self) -> Path:
             self.created = True
-            return tmp_path / "Codex Usage Pet.lnk"
+            return tmp_path / "Rita Desktop Pet.lnk"
 
         def delete(self) -> bool:
             existed = self.created

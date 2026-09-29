@@ -25,7 +25,7 @@ def test_development_mode_does_not_target_python(tmp_path: Path) -> None:
 def test_create_uses_current_exe_working_directory_and_icon(tmp_path: Path) -> None:
     desktop = tmp_path / "中文桌面"
     desktop.mkdir()
-    executable = tmp_path / "便携版" / "CodexUsagePet.exe"
+    executable = tmp_path / "便携版" / "RitaDesktopPet.exe"
     executable.parent.mkdir()
     executable.write_bytes(b"test executable")
     written: list[tuple[Path, Path, Path, Path]] = []
@@ -50,8 +50,8 @@ def test_create_uses_current_exe_working_directory_and_icon(tmp_path: Path) -> N
 def test_existing_shortcut_is_updated_not_duplicated(tmp_path: Path) -> None:
     desktop = tmp_path / "Desktop"
     desktop.mkdir()
-    first = tmp_path / "first" / "CodexUsagePet.exe"
-    second = tmp_path / "portable" / "CodexUsagePet.exe"
+    first = tmp_path / "first" / "RitaDesktopPet.exe"
+    second = tmp_path / "portable" / "RitaDesktopPet.exe"
     for executable in (first, second):
         executable.parent.mkdir()
         executable.write_bytes(b"exe")
@@ -75,7 +75,7 @@ def test_existing_shortcut_is_updated_not_duplicated(tmp_path: Path) -> None:
 def test_delete_is_idempotent(tmp_path: Path) -> None:
     desktop = tmp_path / "Desktop"
     desktop.mkdir()
-    executable = tmp_path / "CodexUsagePet.exe"
+    executable = tmp_path / "RitaDesktopPet.exe"
     executable.write_bytes(b"exe")
 
     def writer(shortcut: Path, _target: Path, _working: Path, _icon: Path) -> None:

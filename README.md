@@ -1,8 +1,8 @@
-# Codex Usage Pet
+# Rita Desktop Pet
 
 一个轻量 Windows 桌面宠物：常驻桌面显示 Codex 5 小时与 weekly 额度，并用宠物姿态表达额度是否充足。
 
-当前版本是 Release Candidate 0.1.0。角色、动画与整套 UI 配色由外置 Skin Pack 驱动，新增角色原则上不需要修改主程序。
+当前版本是公开测试版 v0.1.0-beta。角色、动画与整套 UI 配色由外置 Skin Pack 驱动，新增角色原则上不需要修改主程序。
 
 ## 已实现
 
@@ -83,8 +83,8 @@ py -3.12 -m venv .venv
 用户数据位于：
 
 ```text
-%LOCALAPPDATA%\CodexUsagePet\config.json
-%LOCALAPPDATA%\CodexUsagePet\logs\app.log
+%LOCALAPPDATA%\RitaDesktopPet\config.json
+%LOCALAPPDATA%\RitaDesktopPet\logs\app.log
 ```
 
 日志单文件最大约 1 MB，保留 3 个备份。配置只包含窗口位置、透明度、刷新间隔、置顶、锁定、额度显隐、皮肤计时、安静模式、各 Skin 的动作启用项与开机启动偏好。
@@ -95,7 +95,7 @@ py -3.12 -m venv .venv
 
 1. 随发行包提供的内置 `skins/`；
 2. portable 模式下 EXE 同级的 `skins/`；
-3. `%LOCALAPPDATA%\CodexUsagePet\skins` 用户目录。
+3. `%LOCALAPPDATA%\RitaDesktopPet\skins` 用户目录。
 
 同 ID 的后扫描皮肤会覆盖前者，因此可以在用户目录修订内置皮肤而不改安装文件。右键选择“皮肤 → 打开皮肤目录”，把一个完整皮肤文件夹复制进去，再选择“重新扫描皮肤”即可热加载。坏 JSON、越界路径或缺少 idle 的包会被跳过并写入日志，不影响桌宠运行。
 
@@ -212,7 +212,7 @@ Sit 包含坐下、约 1.5 秒停留和起身；Sleepy 包含犯困、坐卧停�
 开机启动写入当前用户的：
 
 ```text
-HKCU\Software\Microsoft\Windows\CurrentVersion\Run\CodexUsagePet
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run\RitaDesktopPet
 ```
 
 推荐在打包后开启启动项，这样路径稳定。源码模式也可用，但移动项目目录后应重新切换一次开机启动。
@@ -253,19 +253,19 @@ $env:PYTHONPATH = (Resolve-Path .\src)
 输出：
 
 ```text
-dist\CodexUsagePet\CodexUsagePet.exe
-dist\CodexUsagePet-portable.zip
+dist\RitaDesktopPet\RitaDesktopPet.exe
+dist\Rita-Desktop-Pet-v0.1.0-beta-portable.zip
 ```
 
 目标电脑仍需安装并登录 Codex CLI；应用本身不捆绑或复制 Codex 凭据。当前构建未进行代码签名，因此首次运行可能出现 Windows SmartScreen 提示。
 
 ### Portable 使用
 
-1. 将 `CodexUsagePet-portable.zip` 完整解压到任意可写目录；不要直接在 ZIP 内运行。
+1. 将 `Rita-Desktop-Pet-v0.1.0-beta-portable.zip` 完整解压到任意可写目录；不要直接在 ZIP 内运行。
 2. 确认目标电脑上的 `codex --version` 可用，并已通过官方 Codex 登录流程登录。
-3. 双击解压目录中的 `CodexUsagePet\CodexUsagePet.exe`。
+3. 双击解压目录中的 `RitaDesktopPet\RitaDesktopPet.exe`。
 4. 额度会在启动后的首次 App Server 读取完成后出现；右键宠物可立即刷新。
-5. 需要桌面入口时，右键选择“创建桌面快捷方式”。如果 Portable 文件夹以后移动，再执行一次即可更新同一个 `Codex Usage Pet.lnk`；也可从菜单删除。
+5. 需要桌面入口时，右键选择“创建桌面快捷方式”。如果 Portable 文件夹以后移动，再执行一次即可更新同一个 `Rita Desktop Pet.lnk`；也可从菜单删除。
 6. 需要随 Windows 启动时，在右键菜单勾选“开机启动”。退出时使用宠物或托盘菜单的“退出”；关闭桌宠窗口只会隐藏到托盘。
 
 Portable 包不依赖源码目录或 Python 环境，但仍依赖目标电脑上可执行且已登录的官方 Codex CLI。
@@ -279,7 +279,7 @@ Portable 包不依赖源码目录或 Python 环境，但仍依赖目标电脑上
 .\build-installer.ps1
 ```
 
-预期输出为 `dist\CodexUsagePet-Setup-0.1.0.exe`。安装器使用当前用户目录和 HKCU，
+预期输出为 `dist\Rita-Desktop-Pet-v0.1.0-beta-setup.exe`。安装器使用当前用户目录和 HKCU，
 不要求管理员权限；桌面快捷方式和开机启动均为可选项。当前开发机没有安装
 Inno Setup，因此安装器定义已提供，但安装器二进制尚未在本机编译验证。
 

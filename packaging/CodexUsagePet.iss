@@ -1,19 +1,19 @@
-#define MyAppName "Codex Usage Pet"
-#define MyAppVersion "0.1.0"
-#define MyAppPublisher "Codex Usage Pet contributors"
-#define MyAppExeName "CodexUsagePet.exe"
+#define MyAppName "Rita Desktop Pet"
+#define MyAppVersion "0.1.0-beta"
+#define MyAppPublisher "Rita Desktop Pet contributors"
+#define MyAppExeName "RitaDesktopPet.exe"
 
 [Setup]
 AppId={{80B72C5B-172F-46DD-BD36-0D0869E7804F}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={localappdata}\Programs\CodexUsagePet
+DefaultDirName={localappdata}\Programs\RitaDesktopPet
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\dist
-OutputBaseFilename=CodexUsagePet-Setup-{#MyAppVersion}
+OutputBaseFilename=Rita-Desktop-Pet-v0.1.0-beta-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -32,14 +32,14 @@ Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: 
 Name: "startup"; Description: "登录 Windows 时启动"; GroupDescription: "附加选项："; Flags: unchecked
 
 [Files]
-Source: "..\dist\CodexUsagePet\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\RitaDesktopPet\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "CodexUsagePet"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: startup
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "RitaDesktopPet"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "启动 {#MyAppName}"; Flags: nowait postinstall skipifsilent
@@ -49,6 +49,6 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
     RegDeleteValue(HKEY_CURRENT_USER,
-      'Software\Microsoft\Windows\CurrentVersion\Run', 'CodexUsagePet');
+      'Software\Microsoft\Windows\CurrentVersion\Run', 'RitaDesktopPet');
 end;
 

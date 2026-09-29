@@ -4,7 +4,7 @@ from typing import Any
 
 
 _ZH_CN: dict[str, str] = {
-    "app.name": "Codex 额度桌宠",
+    "app.name": "Rita Desktop Pet",
     "menu.refresh": "刷新额度",
     "menu.show_usage": "显示额度信息",
     "menu.always_on_top": "始终置顶",

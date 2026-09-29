@@ -1,4 +1,4 @@
-"""Deterministic hatch-pet-style anchor QA for Codex Usage Pet skins."""
+"""Deterministic hatch-pet-style anchor QA for Rita Desktop Pet skins."""
 
 from __future__ import annotations
 
